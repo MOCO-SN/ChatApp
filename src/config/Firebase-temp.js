@@ -44,7 +44,7 @@ const signup = async (username, email, password) => {
       email,
       name: "",
       avatar: "",
-      bio: "Hey, There I am using Chat Nova",
+      bio: "Hey, There I am using MocoChat",
       lastSeen: Date.now(),
     });
 

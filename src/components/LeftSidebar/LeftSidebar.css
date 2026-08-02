@@ -41,7 +41,7 @@
 }
 
 .ls-nav .menu img {
-  max-height: 20px;
+  max-height: 30px;
   opacity: 0.5;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -343,7 +343,7 @@
   -khtml-user-drag: none;
   -moz-user-drag: none;
   -o-user-drag: none;
-  user-drag: none;
+  -user-drag: none;
 }
 
 /* ===== RESPONSIVE ===== */

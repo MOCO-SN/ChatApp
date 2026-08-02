@@ -31,7 +31,6 @@
 .chat-user img {
   width: 22px;
   opacity: 0.8;
-  filter: brightness(0) invert(1);
 }
 
 .chat-user .user-info {
@@ -196,6 +195,7 @@
 .r-msg .msg {
   color: #111b21;
   background: #fff;
+  padding: 7px;
   border-radius: 15px 15px 15px 4px;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.05);
 }
@@ -252,7 +252,7 @@
   align-items: center;
   gap: 4px;
   padding: 10px 12px;
-  background: #f0f2f5;
+  background: var(--whatsapp-green);
   border-top: 1px solid #e9edef;
   flex-shrink: 0;
   z-index: 2;
@@ -299,7 +299,6 @@
   width: 20px;
   opacity: 0.5;
   transition: opacity 0.2s ease;
-  filter: brightness(0) invert(0.3);
 }
 
 .chat-input label:hover img {
@@ -307,8 +306,8 @@
 }
 
 .chat-input > img:last-child {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
   padding: 6px;
   border-radius: 50%;
@@ -334,7 +333,6 @@
   width: 72px;
   opacity: 0.3;
   position: relative;
-  filter: brightness(0) invert(0.4);
 }
 
 .chat-welcome p {

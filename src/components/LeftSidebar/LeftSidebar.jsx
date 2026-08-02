@@ -50,12 +50,11 @@ export const LeftSidebar = () => {
           const searchedUser = querySnap.docs[0].data();
 
           const userExist = chatData?.some(
-  (chat) =>
-    chat.rId === searchedUser.id ||
-    chat.userData?.username?.toLowerCase().trim() ===
-      searchedUser.username.toLowerCase().trim()
-);
-
+            (chat) =>
+              chat.rId === searchedUser.id ||
+              chat.userData?.username?.toLowerCase().trim() ===
+                searchedUser.username.toLowerCase().trim()
+          );
 
           if (!userExist) {
             setUser(searchedUser);

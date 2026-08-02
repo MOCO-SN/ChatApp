@@ -1,42 +1,23 @@
 .login {
+  background-image: url("./background.jpg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed; /* Optional */
+
   min-height: 100vh;
-  background: var(--bg-gradient);
+  width: 100%;
+
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   justify-content: center;
+  align-items: flex-start;
+
   gap: 28px;
   padding: 48px 10%;
-  position: relative;
-  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Decorative blobs */
-.login::before {
-  content: '';
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 70%);
-  top: -150px;
-  right: -100px;
-  pointer-events: none;
-  animation: floatBlob 10s ease-in-out infinite alternate;
-}
-
-.login::after {
-  content: '';
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-  bottom: -120px;
-  left: 100px;
-  pointer-events: none;
-  animation: floatBlob 13s ease-in-out infinite alternate-reverse;
-}
 
 @keyframes floatBlob {
   from { transform: translate(0, 0) scale(1); }

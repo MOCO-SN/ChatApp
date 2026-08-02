@@ -1,38 +1,21 @@
 .profile {
+  background-image: url("./background.jpg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed; /* Optional */
+
   min-height: 100vh;
-  background: var(--bg-gradient);
+  width: 100%;
+
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  padding: 28px;
-  position: relative;
-  overflow: hidden;
-}
+  align-items: flex-start;
 
-.profile::before {
-  content: '';
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, transparent 70%);
-  top: -150px;
-  right: -100px;
-  pointer-events: none;
-  animation: floatBlob 11s ease-in-out infinite alternate;
-}
-
-.profile::after {
-  content: '';
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, transparent 70%);
-  bottom: -100px;
-  left: -80px;
-  pointer-events: none;
-  animation: floatBlob 9s ease-in-out infinite alternate-reverse;
+  gap: 28px;
+  padding: 48px 10%;
+  box-sizing: border-box;
 }
 
 @keyframes floatBlob {
