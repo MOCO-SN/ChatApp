@@ -1,0 +1,240 @@
+.profile {
+  min-height: 100vh;
+  background: var(--bg-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, transparent 70%);
+  top: -150px;
+  right: -100px;
+  pointer-events: none;
+  animation: floatBlob 11s ease-in-out infinite alternate;
+}
+
+.profile::after {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, transparent 70%);
+  bottom: -100px;
+  left: -80px;
+  pointer-events: none;
+  animation: floatBlob 9s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes floatBlob {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(20px, 15px) scale(1.05); }
+}
+
+/* ===== GLASS CARD ===== */
+.profile-container {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1.5px solid var(--glass-border);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  min-width: 700px;
+  border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(99, 102, 241, 0.15), 0 0 0 1px rgba(255,255,255,0.6) inset;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== LEFT PANEL (avatar preview) ===== */
+.profile-pre {
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  display: flex;
+  background: linear-gradient(160deg, rgba(255,255,255,0.5) 0%, rgba(220,214,247,0.4) 100%);
+  padding: 48px 28px;
+  border-right: 1.5px solid var(--glass-border-soft);
+  min-height: 420px;
+  position: relative;
+}
+
+/* Decorative circle behind avatar */
+.profile-pre::before {
+  content: '';
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.profile-pic {
+  max-width: 150px;
+  aspect-ratio: 1/1;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255,255,255,0.95);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.22);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.profile-pic:hover {
+  transform: scale(1.04);
+  box-shadow: 0 16px 40px rgba(99, 102, 241, 0.32);
+}
+
+/* ===== RIGHT PANEL (form) ===== */
+.profile form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 40px 44px;
+  width: 100%;
+}
+
+.profile form h3 {
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+
+.profile label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.4);
+  border: 1.5px dashed rgba(99, 102, 241, 0.2);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.profile label:hover {
+  color: var(--accent);
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.profile label img {
+  width: 46px;
+  aspect-ratio: 1/1;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+}
+
+.profile input,
+.profile textarea {
+  padding: 12px 16px;
+  min-width: 280px;
+  border: 1.5px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.profile input:focus,
+.profile textarea:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.profile input::placeholder,
+.profile textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.profile textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.profile form button {
+  border: none;
+  color: white;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.4px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.profile form button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(99, 102, 241, 0.55);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .profile {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 48px;
+  }
+
+  .profile-container {
+    flex-direction: column;
+    align-items: center;
+    min-width: unset;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .profile-pre {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1.5px solid var(--glass-border-soft);
+    padding: 32px;
+    min-height: unset;
+  }
+
+  .profile form {
+    width: 100%;
+    padding: 28px 24px;
+    gap: 14px;
+  }
+
+  .profile input,
+  .profile textarea {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .profile-pic {
+    max-width: 120px;
+  }
+}
