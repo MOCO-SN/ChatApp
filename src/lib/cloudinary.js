@@ -1,7 +1,10 @@
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-const FOLDER = import.meta.env.VITE_CLOUDINARY_FOLDER || "chatnova";
+// const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+// const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+// const FOLDER = import.meta.env.VITE_CLOUDINARY_FOLDER;
 
+const CLOUD_NAME = "dpgyfh39j";
+const UPLOAD_PRESET = "chatme";
+const FOLDER = "assets_chat";
 /**
  * Upload image OR video to Cloudinary (unsigned).
  * Auto-detects type via /auto/upload endpoint.
