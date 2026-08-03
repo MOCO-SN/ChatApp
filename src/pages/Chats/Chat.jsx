@@ -14,15 +14,24 @@ const Chat = () => {
   }, [chatData, userData]);
   return (
     <div className="chat">
-      {loading ? (
-        <p className="loading">Loading to your chats...</p>
-      ) : (
-        <div className="chat-container">
-          <LeftSidebar />
-          <ChatBox />
-          <RightSidebar />
+      {loading && (
+        <div className="loading-bar-container">
+          <div className="loading-bar"></div>
         </div>
       )}
+      <div className="chat-wrapper">
+        {loading ? (
+          <div className="loading-screen">
+            <p className="loading">Loading to your chats...</p>
+          </div>
+        ) : (
+          <div className="chat-container">
+            <LeftSidebar />
+            <ChatBox />
+            <RightSidebar />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

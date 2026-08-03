@@ -33,6 +33,7 @@ export const LeftSidebar = () => {
 
   const [user, setUser] = useState(null);
   const [ShowSearch, setShowSearch] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const inputHandler = async (e) => {
     try {
@@ -208,11 +209,18 @@ export const LeftSidebar = () => {
         <div className="ls-nav">
           <img src={assets.logo} className="logo" alt="" />
           <div className="menu">
-            <img src={assets.menu_icon} alt="" />
-            <div className="sub-menu">
-              <p onClick={() => navigate("/profile")}>Edit Profile</p>
-              <hr />
-              <p onClick={() => logout()}>Logout</p>
+            <div 
+              className="user-avatar-btn" 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUserMenu(true);
+              }}
+            >
+              <img 
+                src={userData?.avatar} 
+                alt=""
+                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+              />
             </div>
           </div>
         </div>
@@ -297,6 +305,36 @@ export const LeftSidebar = () => {
           })
         )}
       </div>
+          
+      {showUserMenu && (
+        <div className="user-menu-overlay" onClick={() => setShowUserMenu(false)}>
+          <div className="user-menu-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="user-menu-header">
+              <div className="img-overlay-wrapper" style={{ width: '80px', height: '80px', margin: '0 auto 12px' }}>
+                <img src={userData?.avatar} alt="" />
+                <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
+              </div>
+              <h2 className="user-name">{userData?.name || "User"}</h2>
+              <p className="user-username">@{userData?.username || "username"}</p>
+              <p className="user-phone">{userData?.phone || "No phone number"}</p>
+              <div className={`user-status ${Date.now() - (userData?.lastSeen || 0) <= 70000 ? 'online' : 'offline'}`}>
+                <span className="status-indicator"></span>
+                {Date.now() - (userData?.lastSeen || 0) <= 70000 ? 'Online' : 'Offline'}
+              </div>
+            </div>
+            <div className="user-menu-options">
+              <div className="user-menu-item" onClick={() => { navigate("/profile"); setShowUserMenu(false); }}>
+                <span className="menu-icon"></span>
+                Edit Profile
+              </div>
+              <div className="user-menu-item logout" onClick={() => logout()}>
+                <span className="menu-icon"></span>
+                Logout
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
