@@ -142,6 +142,24 @@ const ChatBox = () => {
     }
   };
 
+  const deleteMessage = async (index, msg) => {
+    if (!messagesId || !msg) return;
+    
+    try {
+      const msgRef = doc(db, "messages", messagesId);
+      const msgSnap = await getDoc(msgRef);
+      
+      if (!msgSnap.exists()) return;
+      
+      const msgData = msgSnap.data();
+      const updatedMessages = msgData.messages.filter((_, i) => i !== index);
+      
+      await updateDoc(msgRef, { messages: updatedMessages });
+    } catch (error) {
+      toast.error("Failed to delete message");
+    }
+  };
+
   useEffect(() => {
     if (!messagesId) return;
 
@@ -226,6 +244,13 @@ const ChatBox = () => {
                 <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
               </div>
               <p>{convertTimestamp(msg.createdAt)}</p>
+            </div>
+            <div
+              className="delete-msg-btn"
+              onClick={() => deleteMessage(index, msg)}
+              title="Delete message"
+            >
+              ×
             </div>
           </div>
         ))}

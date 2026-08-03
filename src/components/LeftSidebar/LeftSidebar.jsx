@@ -123,7 +123,7 @@ export const LeftSidebar = () => {
     }
   };
 
-  const setChat = async (item) => {
+    const setChat = async (item) => {
     try {
       setMessagesId(item.messagesId);
       setChatUser(item);
@@ -145,6 +145,44 @@ export const LeftSidebar = () => {
       setChatVisible(true);
     } catch (error) {
       toast.error(error.message);
+    }
+  };
+
+  const deleteChat = async (item) => {
+    if (window.confirm("Are you sure you want to delete this chat?")) {
+      try {
+        const userChatsRef = doc(db, "chats", userData.id);
+        const otherUserChatsRef = doc(db, "chats", item.userData.id);
+        
+        const userChatsSnap = await getDoc(userChatsRef);
+        const otherUserChatsSnap = await getDoc(otherUserChatsRef);
+        
+        if (userChatsSnap.exists()) {
+          const userChatsData = userChatsSnap.data();
+          const updatedUserChats = userChatsData.chatsData.filter(
+            chat => chat.rId !== item.userData.id
+          );
+          await updateDoc(userChatsRef, { chatsData: updatedUserChats });
+        }
+        
+        if (otherUserChatsSnap.exists()) {
+          const otherUserChatsData = otherUserChatsSnap.data();
+          const updatedOtherUserChats = otherUserChatsData.chatsData.filter(
+            chat => chat.rId !== userData.id
+          );
+          await updateDoc(otherUserChatsRef, { chatsData: updatedOtherUserChats });
+        }
+        
+        if (chatUser && chatUser.userData.id === item.userData.id) {
+          setMessagesId("");
+          setChatUser(null);
+          setChatVisible(false);
+        }
+        
+        toast.success("Chat deleted");
+      } catch (error) {
+        toast.error("Failed to delete chat");
+      }
     }
   };
 
@@ -211,33 +249,48 @@ export const LeftSidebar = () => {
             const isUnread = !(item.messageSeen || item.messagesId === messagesId);
             return (
               <div
-                onClick={() => setChat(item)}
                 key={index}
                 className={`friends ${isUnread ? "border unread" : ""}`}
               >
-                <div className={`img-overlay-wrapper ls-avatar ${isUnread ? "online-dot" : ""}`}>
-                  <img src={item.userData.avatar} alt="" />
-                  <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
-                  {isUnread ? <span className="unread-badge"></span> : null}
-                </div>
-                <div className="friend-info">
-                  <p className="friend-name">{item.userData.name}</p>
-                  <div className="friend-row">
-                    <span className={`friend-last ${isUnread ? "unread" : ""}`}>
-                      {item.lastMessage || "No messages yet"}
-                    </span>
-                    {item.updatedAt ? (
-                      <span className="friend-time">
-                        {new Date(item.updatedAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    ) : null}
-                    {isUnread ? (
-                      <span className="unread-count-badge">1</span>
-                    ) : null}
+                <div
+                  onClick={() => setChat(item)}
+                  className="friend-card-main"
+                  style={{ cursor: "pointer", flex: 1 }}
+                >
+                  <div className={`img-overlay-wrapper ls-avatar ${isUnread ? "online-dot" : ""}`}>
+                    <img src={item.userData.avatar} alt="" />
+                    <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
+                    {isUnread ? <span className="unread-badge"></span> : null}
                   </div>
+                  <div className="friend-info">
+                    <p className="friend-name">{item.userData.name}</p>
+                    <div className="friend-row">
+                      <span className={`friend-last ${isUnread ? "unread" : ""}`}>
+                        {item.lastMessage || "No messages yet"}
+                      </span>
+                      {item.updatedAt ? (
+                        <span className="friend-time">
+                          {new Date(item.updatedAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      ) : null}
+                      {isUnread ? (
+                        <span className="unread-count-badge">1</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="delete-chat-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteChat(item);
+                  }}
+                  title="Delete chat"
+                >
+                  ×
                 </div>
               </div>
             );

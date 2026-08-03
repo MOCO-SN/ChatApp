@@ -200,6 +200,45 @@
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.05);
 }
 
+/* --- Message Actions --- */
+.s-msg,
+.r-msg {
+  position: relative;
+}
+
+.s-msg:hover .delete-msg-btn,
+.r-msg:hover .delete-msg-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.delete-msg-btn {
+  position: absolute;
+  top: 4px;
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 2;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.s-msg .delete-msg-btn {
+  right: -26px;
+}
+
+.r-msg .delete-msg-btn {
+  left: -26px;
+}
+
 /* Media */
 .msg-img {
   max-width: 240px;

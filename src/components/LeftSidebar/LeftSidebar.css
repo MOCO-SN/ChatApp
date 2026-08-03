@@ -144,6 +144,38 @@
   background: #e9edef;
 }
 
+.friend-card-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.delete-chat-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.friends:hover .delete-chat-btn {
+  display: flex;
+}
+
+.delete-chat-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  transform: scale(1.1);
+}
+
 .friends.unread .friend-name {
   color: var(--accent-dark);
   font-weight: 700;
