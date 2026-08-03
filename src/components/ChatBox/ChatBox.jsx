@@ -14,6 +14,7 @@ import { toast } from "react-toastify";
 import uploadToCloudinary from "../../lib/cloudinary";
 
 const ChatBox = () => {
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const {
     userData,
     messagesId,
@@ -155,6 +156,36 @@ const ChatBox = () => {
       const updatedMessages = msgData.messages.filter((_, i) => i !== index);
       
       await updateDoc(msgRef, { messages: updatedMessages });
+      
+      toast.success("Message deleted");
+      
+      // Update last message in chats for both users
+      const lastMsg = updatedMessages[updatedMessages.length - 1];
+      const newLastMessage = lastMsg 
+        ? (lastMsg.text || (lastMsg.image ? "Image" : lastMsg.video ? "Video" : ""))
+        : "";
+      
+      const userIDs = [chatUser.rId, userData.id];
+      for (const id of userIDs) {
+        const userChatsRef = doc(db, "chats", id);
+        const userChatsSnapshot = await getDoc(userChatsRef);
+        
+        if (!userChatsSnapshot.exists()) continue;
+        
+        const userChatData = userChatsSnapshot.data();
+        const chatIndex = userChatData.chatsData.findIndex(
+          (c) => c.messagesId === messagesId
+        );
+        
+        if (chatIndex === -1) continue;
+        
+        userChatData.chatsData[chatIndex].lastMessage = newLastMessage.slice(0, 30);
+        userChatData.chatsData[chatIndex].updatedAt = Date.now();
+        
+        await updateDoc(userChatsRef, {
+          chatsData: userChatData.chatsData,
+        });
+      }
     } catch (error) {
       toast.error("Failed to delete message");
     }
@@ -214,7 +245,7 @@ const ChatBox = () => {
           </div>
         </div>
         <div className="header-actions">
-          <div className="icon-btn">
+          <div className="icon-btn" onClick={() => setShowProfilePopup(true)}>
             <img src={assets.help_icon} className="help" alt="" />
           </div>
           <div className="icon-btn" onClick={() => setChatVisible(false)}>
@@ -279,6 +310,29 @@ const ChatBox = () => {
         </label>
         <img onClick={sendMessage} src={assets.send_button} />
       </div>
+      {showProfilePopup && (
+        <div className="profile-popup-overlay" onClick={() => setShowProfilePopup(false)}>
+          <div className="profile-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="profile-popup-header">
+              <h3>Contact Info</h3>
+              <span onClick={() => setShowProfilePopup(false)}>×</span>
+            </div>
+            <div className="profile-popup-body">
+              <div className="img-overlay-wrapper" style={{ width: '100px', aspectRatio: '1/1', margin: '0 auto 10px' }}>
+                <img src={chatUser.userData.avatar} alt="" />
+                <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
+              </div>
+              <p className="profile-name">{chatUser.userData.name}</p>
+              <p className={`profile-status ${Date.now() - chatUser.userData.lastSeen <= 70000 ? 'online' : 'offline'}`}>
+                {Date.now() - chatUser.userData.lastSeen <= 70000 ? 'Online' : 'Offline'}
+              </p>
+              {chatUser.userData.bio && (
+                <p className="profile-bio">{chatUser.userData.bio}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   ) : (
     <div className={`chat-welcome ${chatVisible ? "" : "hidden"}`}>
