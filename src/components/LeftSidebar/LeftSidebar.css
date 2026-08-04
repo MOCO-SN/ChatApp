@@ -41,8 +41,8 @@
 }
 
 .ls-nav .menu img {
-  max-height: 30px;
-  opacity: 0.5;
+  max-height: 50px;
+  opacity: 0.8;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease;
   padding: 5px;
@@ -193,6 +193,17 @@
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ls-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .ls-avatar.online-dot::after {
@@ -353,8 +364,10 @@
 .img-overlay-wrapper img {
   display: block;
   width: 100%;
+  height: 100%;
   border-radius: inherit;
   object-fit: cover;
+  object-position: center;
   user-select: none;
   pointer-events: none;
 }
@@ -410,13 +423,25 @@
 
 /* ===== USER MENU POPUP ===== */
 .user-avatar-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   transition: border-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-avatar-btn img.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: inherit;
+  display: block;
 }
 
 .user-avatar-btn:hover {
@@ -459,8 +484,21 @@
 }
 
 .user-menu-header .img-overlay-wrapper {
-  border: 3px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   margin: 0 auto 12px;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.user-menu-header .img-overlay-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .user-name {

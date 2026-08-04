@@ -395,6 +395,9 @@ const ChatBox = () => {
                 <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
               </div>
               <p className="profile-name">{chatUser.userData.name}</p>
+              {chatUser.userData.username && (
+                <p className="profile-username">@{chatUser.userData.username}</p>
+              )}
               <p
                 className={`profile-status ${Date.now() - chatUser.userData.lastSeen <= 70000 ? "online" : "offline"}`}
               >

@@ -219,7 +219,7 @@ export const LeftSidebar = () => {
               <img 
                 src={userData?.avatar} 
                 alt=""
-                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                className="user-avatar-img"
               />
             </div>
           </div>
