@@ -122,8 +122,8 @@
 .chat-user .arrow {
   display: none;
   width: 20px;
-  cursor: pointer;
   opacity: 0.5;
+  cursor: pointer;
 }
 
 /* ===== MESSAGE AREA ===== */
@@ -182,7 +182,7 @@
 .s-msg .msg {
   color: #111b21;
   background: #d9fdd3;
-  padding: 6px 10px 8px;
+  padding: 6px 10px 4px;
   max-width: 100%;
   font-size: 14px;
   font-weight: 400;
@@ -190,15 +190,46 @@
   line-height: 1.43;
   word-break: break-word;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
 /* Received bubble — WhatsApp white */
 .r-msg .msg {
   color: #111b21;
   background: #fff;
-  padding: 7px;
+  padding: 6px 10px 4px;
   border-radius: 15px 15px 15px 4px;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.05);
+}
+
+/* Message bottom - contains tick and time */
+.msg-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.tick {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-muted);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tick-blue {
+  color: #2f80eb;
+}
+
+.msg-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 /* --- Message Actions --- */
@@ -215,7 +246,7 @@
 
 .delete-msg-btn {
   position: absolute;
-  top: 4px;
+  top: 2px;
   color: #ef4444;
   font-size: 14px;
   font-weight: bold;
@@ -233,11 +264,11 @@
 }
 
 .s-msg .delete-msg-btn {
-  right: -26px;
+  right: 4px;
 }
 
 .r-msg .delete-msg-btn {
-  left: -26px;
+  left: 4px;
 }
 
 /* Media */
@@ -254,30 +285,18 @@
   transform: scale(1.01);
 }
 
-/* Message meta */
+/* Message meta - Avatar indicator */
 .msg-meta {
   display: flex;
-  flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
-  min-width: 32px;
-}
-
-.r-msg .msg-meta {
-  align-items: flex-start;
+  margin-left: 8px;
 }
 
 .msg-meta .img-overlay-wrapper {
   border: 1.5px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
-}
-
-.msg-meta p {
-  font-size: 10px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  font-weight: 500;
 }
 
 /* Group spacing */
@@ -472,7 +491,11 @@
   }
 
   .chat-user .help {
-    display: none;
+    display: block;
+  }
+
+  .chat-user .header-actions {
+    gap: 4px;
   }
 
   .s-msg, .r-msg {

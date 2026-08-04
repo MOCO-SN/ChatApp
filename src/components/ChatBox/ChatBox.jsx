@@ -4,6 +4,7 @@ import assets from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 import {
   arrayUnion,
+  arrayRemove,
   doc,
   getDoc,
   onSnapshot,
@@ -15,6 +16,10 @@ import uploadToCloudinary from "../../lib/cloudinary";
 
 const ChatBox = () => {
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [input, setInput] = useState("");
+  const messagesEndRef = useRef(null);
+  const isFirstLoad = useRef(true);
+
   const {
     userData,
     messagesId,
@@ -23,182 +28,199 @@ const ChatBox = () => {
     setMessages,
     chatVisible,
     setChatVisible,
-    rightSidebarVisible,
+    chatData,
     setRightSidebarVisible,
-
   } = useContext(AppContext);
-  const [input, setInput] = useState("");
-  const messagesEndRef = useRef(null);
-  const isFirstLoad = useRef(true);
 
   const scrollToBottom = (behavior = "smooth") => {
     const el = messagesEndRef.current;
     if (!el) return;
-    // Ensure content is rendered before scrolling
     requestAnimationFrame(() => {
       el.scrollIntoView({ behavior, block: "end" });
     });
   };
 
-  const sendMessage = async () => {
-  try {
-    if (!input || !messagesId) return;
-
-    
-    await updateDoc(doc(db, "messages", messagesId), {
-      messages: arrayUnion({
-        sId: userData.id,
-        text: input,
-        createdAt: new Date(),
-      }),
-    });
-
+  const updateChatLastMessage = async (lastMessageText) => {
+    if (!chatUser) return;
     
     const userIDs = [chatUser.rId, userData.id];
-
     for (const id of userIDs) {
-      const userChatsRef = doc(db, "chats", id);
-      const userChatsSnapshot = await getDoc(userChatsRef);
+      try {
+        const userChatsRef = doc(db, "chats", id);
+        const userChatsSnapshot = await getDoc(userChatsRef);
 
-      if (!userChatsSnapshot.exists()) continue;
+        if (!userChatsSnapshot.exists()) continue;
 
-      const userChatData = userChatsSnapshot.data();
-      const chatIndex = userChatData.chatsData.findIndex(
-        (c) => c.messagesId === messagesId
-      );
+        const userChatData = userChatsSnapshot.data();
+        const chatIndex = userChatData.chatsData.findIndex(
+          (c) => c.messagesId === messagesId
+        );
 
-      if (chatIndex === -1) continue;
+        if (chatIndex === -1) continue;
 
-      
-      userChatData.chatsData[chatIndex].lastMessage = input.slice(0, 30);
-      userChatData.chatsData[chatIndex].updatedAt = Date.now();
+        userChatData.chatsData[chatIndex].lastMessage = lastMessageText.slice(0, 30);
+        userChatData.chatsData[chatIndex].updatedAt = Date.now();
 
-      if (userChatData.chatsData[chatIndex].rId === userData.id) {
-        userChatData.chatsData[chatIndex].messageSeen = false;
-      }
+        if (userChatData.chatsData[chatIndex].rId === userData.id) {
+          userChatData.chatsData[chatIndex].messageSeen = false;
+        } else {
+          userChatData.chatsData[chatIndex].messageSeen = true;
+        }
 
-      await updateDoc(userChatsRef, {
-        chatsData: userChatData.chatsData,
-      });
-
-      
-    }
-
-    
-    setInput("");
-  } catch (error) {
-    toast.error(error.message);
-  }
-};
-
-
-  const sendImage = async (e) => {
-    try {
-      const file = e.target.files[0]; 
-      const fileUrl = await uploadToCloudinary(file);
-
-      if (fileUrl && messagesId) {
-        await updateDoc(doc(db, "messages", messagesId), {
-          messages: arrayUnion({
-            sId: userData.id,
-            [file.type.startsWith("video") ? "video" : "image"]: fileUrl, // 👈 dynamic key
-            createdAt: new Date(),
-          }),
+        await updateDoc(userChatsRef, {
+          chatsData: userChatData.chatsData,
         });
-
-        const userIDs = [chatUser.rId, userData.id];
-        userIDs.forEach(async (id) => {
-          const userChatsRef = doc(db, "chats", id);
-          const userChatsSnapshot = await getDoc(userChatsRef);
-          if (userChatsSnapshot.exists()) {
-            const userChatData = userChatsSnapshot.data();
-            const chatIndex = userChatData.chatsData.findIndex(
-              (c) => c.messagesId === messagesId
-            );
-            userChatData.chatsData[chatIndex].lastMessage =
-              file.type.startsWith("video") ? "Video" : "Image";
-            userChatData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatData.chatsData[chatIndex].rId === userData.id) {
-              userChatData.chatsData[chatIndex].messageSeen = false;
-            }
-            await updateDoc(userChatsRef, {
-              chatsData: userChatData.chatsData,
-            });
-          }
-        });
+      } catch (error) {
+        console.error("Failed to update chat last message for user", id, error);
       }
-    } catch (error) {
-      toast.error(error.message);
     }
   };
 
-  const convertTimestamp = (timestamp) => {
-    let date = timestamp.toDate();
-    const hour = date.getHours();
-    const minute = date.getMinutes();
-    if (hour > 12) {
-      return hour - 12 + ":" + minute + "PM";
-    } else {
-      return hour + ":" + minute + "AM";
+  const sendMessage = async () => {
+    if (!input.trim() || !messagesId || !chatUser) return;
+
+    try {
+      const messageData = {
+        sId: userData.id,
+        text: input,
+        createdAt: new Date(),
+        status: "sent",
+      };
+
+      await updateDoc(doc(db, "messages", messagesId), {
+        messages: arrayUnion(messageData),
+      });
+
+      setMessages((prev) => [...prev, messageData]);
+      
+      updateChatLastMessage(input).catch((err) => {
+        console.error("Failed to update chat last message:", err);
+      });
+      
+      setInput("");
+    } catch (error) {
+      toast.error("Failed to send message: " + error.message);
+    }
+  };
+
+  const sendImage = async (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file || !messagesId || !chatUser) return;
+      
+      const fileUrl = await uploadToCloudinary(file);
+
+      if (fileUrl && messagesId) {
+        const messageData = {
+          sId: userData.id,
+          ...(file.type.startsWith("video") ? { video: fileUrl } : { image: fileUrl }),
+          createdAt: new Date(),
+          status: "sent",
+        };
+
+        await updateDoc(doc(db, "messages", messagesId), {
+          messages: arrayUnion(messageData),
+        });
+
+        setMessages((prev) => [...prev, messageData]);
+        const lastMessageText = file.type.startsWith("video") ? "Video" : "Image";
+        updateChatLastMessage(lastMessageText).catch((err) => {
+          console.error("Failed to update chat last message:", err);
+        });
+      }
+    } catch (error) {
+      toast.error("Failed to send media: " + error.message);
     }
   };
 
   const deleteMessage = async (index, msg) => {
     if (!messagesId || !msg) return;
-    
+
     try {
       const msgRef = doc(db, "messages", messagesId);
       const msgSnap = await getDoc(msgRef);
-      
+
       if (!msgSnap.exists()) return;
-      
+
       const msgData = msgSnap.data();
       const updatedMessages = msgData.messages.filter((_, i) => i !== index);
-      
+
       await updateDoc(msgRef, { messages: updatedMessages });
-      
+      setMessages(updatedMessages);
       toast.success("Message deleted");
-      
-      // Update last message in chats for both users
+
       const lastMsg = updatedMessages[updatedMessages.length - 1];
-      const newLastMessage = lastMsg 
+      const newLastMessage = lastMsg
         ? (lastMsg.text || (lastMsg.image ? "Image" : lastMsg.video ? "Video" : ""))
         : "";
-      
-      const userIDs = [chatUser.rId, userData.id];
-      for (const id of userIDs) {
-        const userChatsRef = doc(db, "chats", id);
-        const userChatsSnapshot = await getDoc(userChatsRef);
-        
-        if (!userChatsSnapshot.exists()) continue;
-        
-        const userChatData = userChatsSnapshot.data();
-        const chatIndex = userChatData.chatsData.findIndex(
-          (c) => c.messagesId === messagesId
-        );
-        
-        if (chatIndex === -1) continue;
-        
-        userChatData.chatsData[chatIndex].lastMessage = newLastMessage.slice(0, 30);
-        userChatData.chatsData[chatIndex].updatedAt = Date.now();
-        
-        await updateDoc(userChatsRef, {
-          chatsData: userChatData.chatsData,
-        });
-      }
-    } catch (error) {
+
+      await updateChatLastMessage(newLastMessage);
+    } catch {
       toast.error("Failed to delete message");
+    }
+  };
+
+  const getTickIcon = (msg) => {
+    const isOwnMessage = msg.sId === userData.id;
+    if (!isOwnMessage) return "";
+
+    const status = msg.status || "sent";
+    const chatSeen =
+      chatData?.find((c) => c.messagesId === messagesId)?.messageSeen || false;
+
+    if (status === "read" || (status === "delivered" && chatSeen)) {
+      return "✓✓";
+    }
+
+    if (status === "delivered" || (status === "sent" && chatSeen)) {
+      return "✓✓";
+    }
+
+    return "✓";
+  };
+
+  const getTickClassName = (msg) => {
+    const isOwnMessage = msg.sId === userData.id;
+    if (!isOwnMessage) return "";
+
+    const status = msg.status || "sent";
+    const chatSeen =
+      chatData?.find((c) => c.messagesId === messagesId)?.messageSeen || false;
+
+    if (status === "read" || (status === "delivered" && chatSeen)) {
+      return "tick tick-blue";
+    }
+
+    return "tick";
+  };
+
+  const convertTimestamp = (timestamp) => {
+    if (!timestamp) return "";
+    let date;
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    } else {
+      date = new Date(timestamp);
+    }
+    const hour = date.getHours();
+    const minute = date.getMinutes().toString().padStart(2, "0");
+    if (hour > 12) {
+      return hour - 12 + ":" + minute + "PM";
+    } else {
+      return (hour === 0 ? 12 : hour) + ":" + minute + "AM";
     }
   };
 
   useEffect(() => {
     if (!messagesId) return;
 
-    // Clear old messages and reset scroll state
     setMessages([]);
     isFirstLoad.current = true;
 
-    // Reset scroll position to bottom immediately when switching chats
     setTimeout(() => {
       const chatMsg = document.querySelector(".chat-msg");
       if (chatMsg) {
@@ -209,6 +231,18 @@ const ChatBox = () => {
     const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
       const msgs = res.data()?.messages || [];
       setMessages(msgs);
+
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg && lastMsg.sId !== userData.id && lastMsg.status === "sent") {
+        const msgRef = doc(db, "messages", messagesId);
+        const msgData = res.data();
+        const updatedMessages = [...(msgData.messages || [])];
+        const lastMsgIndex = updatedMessages.length - 1;
+        if (lastMsgIndex >= 0) {
+          updatedMessages[lastMsgIndex] = { ...lastMsg, status: "delivered" };
+          updateDoc(msgRef, { messages: updatedMessages }).catch(() => {});
+        }
+      }
     });
     return () => {
       unSub();
@@ -216,20 +250,43 @@ const ChatBox = () => {
   }, [messagesId]);
 
   useEffect(() => {
+    if (chatUser && messagesId) {
+      const chatUserDocRef = doc(db, "chats", chatUser.rId);
+      getDoc(chatUserDocRef).then((snap) => {
+        if (!snap.exists()) return;
+        const chatData = snap.data();
+        const chatIndex = chatData.chatsData.findIndex(
+          (c) => c.messagesId === messagesId
+        );
+        if (chatIndex === -1) return;
+        if (!chatData.chatsData[chatIndex].messageSeen) {
+          updateDoc(chatUserDocRef, {
+            chatsData: arrayRemove(chatData.chatsData[chatIndex]),
+          }).catch(() => {});
+
+          const updatedChat = { ...chatData.chatsData[chatIndex], messageSeen: true };
+          updateDoc(chatUserDocRef, {
+            chatsData: arrayUnion(updatedChat),
+          }).catch(() => {});
+        }
+      });
+    }
+  }, [messages, messagesId, chatUser]);
+
+  useEffect(() => {
     if (messages.length === 0) return;
     if (isFirstLoad.current) {
-      // Jump instantly to bottom when opening a chat
       scrollToBottom("instant");
       isFirstLoad.current = false;
     } else {
-      // Smooth scroll only for new incoming messages
       scrollToBottom("smooth");
     }
   }, [messages]);
+
   return chatUser ? (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
-        <div className="img-overlay-wrapper" style={{ width: '40px', aspectRatio: '1/1' }}>
+        <div className="img-overlay-wrapper" style={{ width: "40px", aspectRatio: "1/1" }}>
           <img src={chatUser.userData.avatar} alt="" />
           <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
         </div>
@@ -240,8 +297,10 @@ const ChatBox = () => {
               <span className="dot"></span>
             ) : null}
           </div>
-          <div className={`user-status ${Date.now() - chatUser.userData.lastSeen <= 70000 ? 'online' : ''}`}>
-            {Date.now() - chatUser.userData.lastSeen <= 70000 ? 'Online' : 'Offline'}
+          <div
+            className={`user-status ${Date.now() - chatUser.userData.lastSeen <= 70000 ? "online" : ""}`}
+          >
+            {Date.now() - chatUser.userData.lastSeen <= 70000 ? "Online" : "Offline"}
           </div>
         </div>
         <div className="header-actions">
@@ -254,37 +313,47 @@ const ChatBox = () => {
         </div>
       </div>
       <div className="chat-msg">
-        {messages.map((msg, index) => (
-          <div
-            key={msg.createdAt?.seconds + "-" + msg.sId || index}
-            className={msg.sId === userData.id ? "s-msg" : "r-msg"}
-          >
-            {msg["image"] ? (
-              <img className="msg-img" src={msg.image} alt="" />
-            ) : msg["video"] ? (
-              <video className="msg-img" src={msg.video} controls />
-            ) : (
-              <p className="msg">{msg.text}</p>
-            )}
-            <div className="msg-meta">
-              <div className="img-overlay-wrapper" style={{ width: '22px', aspectRatio: '1/1' }}>
-                <img
-                  src={msg.sId === userData.id ? userData.avatar : chatUser.userData.avatar}
-                  alt=""
-                />
-                <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
-              </div>
-              <p>{convertTimestamp(msg.createdAt)}</p>
-            </div>
+        {messages.map((msg, index) => {
+          const isOwnMessage = msg.sId === userData.id;
+          return (
             <div
-              className="delete-msg-btn"
-              onClick={() => deleteMessage(index, msg)}
-              title="Delete message"
+              key={(msg.createdAt?.seconds || msg.createdAt?.getTime?.() || Date.now()) + "-" + msg.sId + "-" + index}
+              className={isOwnMessage ? "s-msg" : "r-msg"}
             >
-              ×
+              {msg["image"] ? (
+                <img className="msg-img" src={msg.image} alt="" />
+              ) : msg["video"] ? (
+                <video className="msg-img" src={msg.video} controls />
+              ) : (
+                <p className="msg">
+                  {msg.text}
+                  <span className="msg-bottom">
+                    <span className={getTickClassName(msg)}>
+                      {getTickIcon(msg)}
+                    </span>
+                    <span className="msg-time">{convertTimestamp(msg.createdAt)}</span>
+                  </span>
+                </p>
+              )}
+              <div className="msg-meta">
+                <div className="img-overlay-wrapper" style={{ width: "22px", aspectRatio: "1/1" }}>
+                  <img
+                    src={isOwnMessage ? userData.avatar : chatUser.userData.avatar}
+                    alt=""
+                  />
+                  <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
+                </div>
+              </div>
+              <div
+                className="delete-msg-btn"
+                onClick={() => deleteMessage(index, msg)}
+                title="Delete message"
+              >
+                ×
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
@@ -318,13 +387,18 @@ const ChatBox = () => {
               <span onClick={() => setShowProfilePopup(false)}>×</span>
             </div>
             <div className="profile-popup-body">
-              <div className="img-overlay-wrapper" style={{ width: '100px', aspectRatio: '1/1', margin: '0 auto 10px' }}>
+              <div
+                className="img-overlay-wrapper"
+                style={{ width: "100px", aspectRatio: "1/1", margin: "0 auto 10px" }}
+              >
                 <img src={chatUser.userData.avatar} alt="" />
                 <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
               </div>
               <p className="profile-name">{chatUser.userData.name}</p>
-              <p className={`profile-status ${Date.now() - chatUser.userData.lastSeen <= 70000 ? 'online' : 'offline'}`}>
-                {Date.now() - chatUser.userData.lastSeen <= 70000 ? 'Online' : 'Offline'}
+              <p
+                className={`profile-status ${Date.now() - chatUser.userData.lastSeen <= 70000 ? "online" : "offline"}`}
+              >
+                {Date.now() - chatUser.userData.lastSeen <= 70000 ? "Online" : "Offline"}
               </p>
               {chatUser.userData.bio && (
                 <p className="profile-bio">{chatUser.userData.bio}</p>

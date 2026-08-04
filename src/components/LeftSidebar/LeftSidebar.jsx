@@ -181,7 +181,7 @@ export const LeftSidebar = () => {
         }
         
         toast.success("Chat deleted");
-      } catch (error) {
+      } catch {
         toast.error("Failed to delete chat");
       }
     }

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import "./Login.css";
-import assets from "../../assets/assets";
 import { signup, login, resetPass } from "../../config/Firebase-temp";
 const Login = () => {
   const [currState, setCurrState] = useState("Sign Up");
