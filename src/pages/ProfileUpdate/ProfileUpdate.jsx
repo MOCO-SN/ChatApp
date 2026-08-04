@@ -52,11 +52,6 @@ const ProfileUpdate = () => {
         return;
       }
 
-      if (username && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-        toast.error("Username must be 3-20 characters, alphanumeric and underscores only");
-        return;
-      }
-
       const docRef = doc(db, "users", uid);
 
       if (image) {
@@ -67,14 +62,12 @@ const ProfileUpdate = () => {
           bio: bio,
           name: name,
           phone: phone,
-          username: username ? username.toLowerCase().trim() : undefined,
         });
       } else {
         await updateDoc(docRef, {
           bio: bio,
           name: name,
           phone: phone,
-          username: username ? username.toLowerCase().trim() : undefined,
         });
       }
 
@@ -150,10 +143,11 @@ const ProfileUpdate = () => {
           />
 
           <input
-            onChange={(e) => setUsername(e.target.value)}
             value={username}
             type="text"
             placeholder="Username"
+            readOnly
+            style={{ opacity: 0.7, cursor: "not-allowed" }}
           />
 
           <textarea
