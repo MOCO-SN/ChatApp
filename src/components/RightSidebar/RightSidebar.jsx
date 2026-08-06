@@ -20,6 +20,7 @@ const RightSidebar = () => {
   }, [messages]);
 
   const isOnline = chatUser && (Date.now() - chatUser.userData.lastSeen <= 70000);
+  const isBusiness = chatUser?.userData?.accountType === "business";
 
   return chatUser ? (
   <div className={`rs ${rightSidebarVisible ? "visible" : ""}`}>
@@ -38,12 +39,29 @@ const RightSidebar = () => {
       </div>
       <h3>
         {chatUser.userData.name}
+        {isBusiness && <span className="business-badge">Business</span>}
       </h3>
       <div className={`status-badge ${isOnline ? "" : "offline"}`}>
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOnline ? 'var(--online)' : 'var(--text-muted)', display: 'inline-block' }}></span>
         {isOnline ? "Online" : "Offline"}
       </div>
       <p>{chatUser.userData.bio}</p>
+      {isBusiness && (
+        <div className="business-info">
+          {chatUser.userData.companyName && (
+            <p><strong>Company:</strong> {chatUser.userData.companyName}</p>
+          )}
+          {chatUser.userData.industry && (
+            <p><strong>Industry:</strong> {chatUser.userData.industry}</p>
+          )}
+          {chatUser.userData.website && (
+            <p><strong>Website:</strong> {chatUser.userData.website}</p>
+          )}
+          {chatUser.userData.address && (
+            <p><strong>Address:</strong> {chatUser.userData.address}</p>
+          )}
+        </div>
+      )}
     </div>
 
     <hr />

@@ -246,10 +246,15 @@ export const LeftSidebar = () => {
               <img src={user.avatar} alt="" />
               <div className="overlay" onContextMenu={(e) => e.preventDefault()} />
             </div>
-            <div className="friend-info">
-              <p className="friend-name">{user.name}</p>
-              <span className="friend-status">Click to start chat</span>
-            </div>
+              <div className="friend-info">
+                <div className="friend-name-row">
+                  <p className="friend-name">{user.name}</p>
+                  {user.accountType === "business" && (
+                    <span className="friend-business-badge">Business</span>
+                  )}
+                </div>
+                <span className="friend-status">Click to start chat</span>
+              </div>
           </div>
         ) : (
           chatData.map((item, index) => {
@@ -260,7 +265,7 @@ export const LeftSidebar = () => {
                 key={index}
                 className={`friends ${isUnread ? "border unread" : ""}`}
               >
-                <div
+                 <div
                   onClick={() => setChat(item)}
                   className="friend-card-main"
                   style={{ cursor: "pointer", flex: 1 }}
@@ -271,7 +276,12 @@ export const LeftSidebar = () => {
                     {isUnread ? <span className="unread-badge"></span> : null}
                   </div>
                   <div className="friend-info">
-                    <p className="friend-name">{item.userData.name}</p>
+                    <div className="friend-name-row">
+                      <p className="friend-name">{item.userData.name}</p>
+                      {item.userData.accountType === "business" && (
+                        <span className="friend-business-badge">Business</span>
+                      )}
+                    </div>
                     <div className="friend-row">
                       <span className={`friend-last ${isUnread ? "unread" : ""}`}>
                         {item.lastMessage || "No messages yet"}
@@ -317,6 +327,11 @@ export const LeftSidebar = () => {
               <h2 className="user-name">{userData?.name || "User"}</h2>
               <p className="user-username">@{userData?.username || "username"}</p>
               <p className="user-phone">{userData?.phone || "No phone number"}</p>
+              {userData?.accountType && (
+                <p className="user-account-type">
+                  {userData.accountType === "business" ? "🏢 Business Account" : "👤 Personal Account"}
+                </p>
+              )}
               <div className={`user-status ${Date.now() - (userData?.lastSeen || 0) <= 70000 ? 'online' : 'offline'}`}>
                 <span className="status-indicator"></span>
                 {Date.now() - (userData?.lastSeen || 0) <= 70000 ? 'Online' : 'Offline'}

@@ -19,6 +19,8 @@ const ChatBox = () => {
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showBusinessPanel, setShowBusinessPanel] = useState(false);
+  const [businessTemplate, setBusinessTemplate] = useState("invoice");
   const messagesEndRef = useRef(null);
   const isFirstLoad = useRef(true);
   const sendingRef = useRef(false);
@@ -137,6 +139,7 @@ const ChatBox = () => {
           ...(file.type.startsWith("video") ? { video: fileUrl } : { image: fileUrl }),
           createdAt: new Date(),
           status: "sent",
+          ...(userData.accountType === "business" ? { messageType: "media" } : {}),
         };
 
         await updateDoc(doc(db, "messages", messagesId), {
@@ -150,6 +153,77 @@ const ChatBox = () => {
       }
     } catch (error) {
       toast.error("Failed to send media: " + error.message);
+    }
+  };
+
+  const sendBusinessMessage = async (templateType, data) => {
+    if (!messagesId || !chatUser || sendingRef.current) return;
+    sendingRef.current = true;
+
+    try {
+      let messageText = "";
+      let messageType = "business";
+
+      if (templateType === "invoice") {
+        messageText = `📄 INVOICE\n\n` +
+          `From: ${data.companyName || userData.name}\n` +
+          `To: ${chatUser.userData.name}\n` +
+          `-------------------\n` +
+          `Invoice #: ${data.invoiceNumber || "INV-001"}\n` +
+          `Date: ${data.date || new Date().toLocaleDateString()}\n` +
+          `-------------------\n` +
+          `Items:\n${data.items || "Services rendered"}\n` +
+          `-------------------\n` +
+          `Total: ${data.amount || "0.00"}\n` +
+          `Status: ${data.status || "Pending"}\n` +
+          `\nThank you for your business!`;
+      } else if (templateType === "notice") {
+        messageText = `📢 NOTICE\n\n` +
+          `From: ${data.companyName || userData.name}\n` +
+          `To: ${chatUser.userData.name}\n` +
+          `-------------------\n` +
+          `Subject: ${data.subject || "Important Notice"}\n` +
+          `-------------------\n` +
+          `${data.message || ""}\n` +
+          `-------------------\n` +
+          `Date: ${data.date || new Date().toLocaleDateString()}\n` +
+          `For queries, contact us.`;
+      } else if (templateType === "data") {
+        messageText = `📊 DATA UPDATE\n\n` +
+          `From: ${data.companyName || userData.name}\n` +
+          `To: ${chatUser.userData.name}\n` +
+          `-------------------\n` +
+          `${data.title || "Information"}\n` +
+          `-------------------\n` +
+          `${data.content || ""}\n` +
+          `-------------------\n` +
+          `Reference: ${data.reference || "N/A"}\n` +
+          `Date: ${data.date || new Date().toLocaleDateString()}`;
+      }
+
+      const messageData = {
+        sId: userData.id,
+        text: messageText,
+        createdAt: new Date(),
+        status: "sent",
+        messageType,
+        templateType,
+        ...(userData.accountType === "business" ? { senderCompany: data.companyName || userData.name } : {}),
+      };
+
+      await updateDoc(doc(db, "messages", messagesId), {
+        messages: arrayUnion(messageData),
+      });
+
+      updateChatLastMessage(messageText.split("\n")[0]).catch((err) => {
+        console.error("Failed to update chat last message:", err);
+      });
+
+      setShowBusinessPanel(false);
+    } catch (error) {
+      toast.error("Failed to send business message: " + error.message);
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -466,6 +540,12 @@ const ChatBox = () => {
           😊
         </div>
 
+        {userData?.accountType === "business" && (
+          <div className="emoji-btn business-btn" onClick={() => setShowBusinessPanel(!showBusinessPanel)} title="Business Tools">
+            🏢
+          </div>
+        )}
+
         <button type="button" className="send-btn" onClick={() => {
           const value = textareaRef.current?.value || input || "";
           if (value.trim()) sendMessage(value);
@@ -490,6 +570,157 @@ const ChatBox = () => {
                   {emoji}
                 </span>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {showBusinessPanel && userData?.accountType === "business" && (
+        <div className="business-panel-overlay" onClick={() => setShowBusinessPanel(false)}>
+          <div className="business-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="business-panel-header">
+              <h3>Business Tools</h3>
+              <span onClick={() => setShowBusinessPanel(false)}>×</span>
+            </div>
+            <div className="business-panel-body">
+              <div className="business-template-tabs">
+                <button
+                  className={`template-tab ${businessTemplate === "invoice" ? "active" : ""}`}
+                  onClick={() => setBusinessTemplate("invoice")}
+                >
+                  📄 Invoice
+                </button>
+                <button
+                  className={`template-tab ${businessTemplate === "notice" ? "active" : ""}`}
+                  onClick={() => setBusinessTemplate("notice")}
+                >
+                  📢 Notice
+                </button>
+                <button
+                  className={`template-tab ${businessTemplate === "data" ? "active" : ""}`}
+                  onClick={() => setBusinessTemplate("data")}
+                >
+                  📊 Data
+                </button>
+              </div>
+
+              {businessTemplate === "invoice" && (
+                <div className="template-form">
+                  <input
+                    id="invoice-company"
+                    placeholder="Company Name"
+                    defaultValue={userData.companyName || userData.name}
+                  />
+                  <input
+                    id="invoice-number"
+                    placeholder="Invoice # (e.g., INV-001)"
+                    defaultValue="INV-001"
+                  />
+                  <input
+                    id="invoice-items"
+                    placeholder="Items / Services"
+                    defaultValue="Services rendered"
+                  />
+                  <input
+                    id="invoice-amount"
+                    placeholder="Amount"
+                    defaultValue="0.00"
+                  />
+                  <select id="invoice-status" defaultValue="Pending">
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Overdue">Overdue</option>
+                  </select>
+                  <button
+                    className="send-template-btn"
+                    onClick={() => {
+                      const data = {
+                        companyName: document.getElementById("invoice-company")?.value || userData.name,
+                        invoiceNumber: document.getElementById("invoice-number")?.value,
+                        items: document.getElementById("invoice-items")?.value,
+                        amount: document.getElementById("invoice-amount")?.value,
+                        status: document.getElementById("invoice-status")?.value,
+                      };
+                      sendBusinessMessage("invoice", data);
+                    }}
+                  >
+                    Send Invoice
+                  </button>
+                </div>
+              )}
+
+              {businessTemplate === "notice" && (
+                <div className="template-form">
+                  <input
+                    id="notice-company"
+                    placeholder="Company Name"
+                    defaultValue={userData.companyName || userData.name}
+                  />
+                  <input
+                    id="notice-subject"
+                    placeholder="Subject"
+                    defaultValue="Important Notice"
+                  />
+                  <textarea
+                    id="notice-message"
+                    placeholder="Notice message..."
+                    rows={4}
+                    defaultValue=""
+                  />
+                  <button
+                    className="send-template-btn"
+                    onClick={() => {
+                      const data = {
+                        companyName: document.getElementById("notice-company")?.value || userData.name,
+                        subject: document.getElementById("notice-subject")?.value,
+                        message: document.getElementById("notice-message")?.value,
+                      };
+                      sendBusinessMessage("notice", data);
+                    }}
+                  >
+                    Send Notice
+                  </button>
+                </div>
+              )}
+
+              {businessTemplate === "data" && (
+                <div className="template-form">
+                  <input
+                    id="data-company"
+                    placeholder="Company Name"
+                    defaultValue={userData.companyName || userData.name}
+                  />
+                  <input
+                    id="data-title"
+                    placeholder="Title"
+                    defaultValue="Information Update"
+                  />
+                  <textarea
+                    id="data-content"
+                    placeholder="Content..."
+                    rows={4}
+                    defaultValue=""
+                  />
+                  <input
+                    id="data-reference"
+                    placeholder="Reference #"
+                    defaultValue="N/A"
+                  />
+                  <button
+                    className="send-template-btn"
+                    onClick={() => {
+                      const data = {
+                        companyName: document.getElementById("data-company")?.value || userData.name,
+                        title: document.getElementById("data-title")?.value,
+                        content: document.getElementById("data-content")?.value,
+                        reference: document.getElementById("data-reference")?.value,
+                      };
+                      sendBusinessMessage("data", data);
+                    }}
+                  >
+                    Send Data Update
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -520,6 +751,27 @@ const ChatBox = () => {
               </p>
               {chatUser.userData.bio && (
                 <p className="profile-bio">{chatUser.userData.bio}</p>
+              )}
+              {chatUser.userData.accountType && (
+                <p className={`profile-account-type ${chatUser.userData.accountType}`}>
+                  {chatUser.userData.accountType === "business" ? "🏢 Business Account" : "👤 Personal Account"}
+                </p>
+              )}
+              {chatUser.userData.accountType === "business" && (
+                <div className="profile-business-info">
+                  {chatUser.userData.companyName && (
+                    <p><strong>Company:</strong> {chatUser.userData.companyName}</p>
+                  )}
+                  {chatUser.userData.industry && (
+                    <p><strong>Industry:</strong> {chatUser.userData.industry}</p>
+                  )}
+                  {chatUser.userData.website && (
+                    <p><strong>Website:</strong> {chatUser.userData.website}</p>
+                  )}
+                  {chatUser.userData.address && (
+                    <p><strong>Address:</strong> {chatUser.userData.address}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>

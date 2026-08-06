@@ -18,6 +18,11 @@ const ProfileUpdate = () => {
   const [username, setUsername] = useState("");
   const [prevImage, setPrevImage] = useState("");
   const [uid, setUid] = useState("");
+  const [accountType, setAccountType] = useState("personal");
+  const [companyName, setCompanyName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [website, setWebsite] = useState("");
+  const [address, setAddress] = useState("");
   const { setUserData } = useContext(AppContext);
 
   const formatPhone = (value) => {
@@ -54,22 +59,26 @@ const ProfileUpdate = () => {
 
       const docRef = doc(db, "users", uid);
 
+      const updateData = {
+        bio: bio,
+        name: name,
+        phone: phone,
+        accountType,
+        ...(accountType === "business" && {
+          companyName,
+          industry,
+          website,
+          address,
+        }),
+      };
+
       if (image) {
         const imgUrl = await uploadToCloudinary(image);
         setPrevImage(imgUrl);
-        await updateDoc(docRef, {
-          avatar: imgUrl,
-          bio: bio,
-          name: name,
-          phone: phone,
-        });
-      } else {
-        await updateDoc(docRef, {
-          bio: bio,
-          name: name,
-          phone: phone,
-        });
+        updateData.avatar = imgUrl;
       }
+
+      await updateDoc(docRef, updateData);
 
       const snap = await getDoc(docRef);
       setUserData && setUserData(snap.data());
@@ -93,6 +102,11 @@ const ProfileUpdate = () => {
         if (d.username) setUsername(d.username);
         if (d.phone) setPhone(formatPhone(d.phone.replace(/\D/g, "")));
         if (d.avatar) setPrevImage(d.avatar);
+        if (d.accountType) setAccountType(d.accountType);
+        if (d.companyName) setCompanyName(d.companyName);
+        if (d.industry) setIndustry(d.industry);
+        if (d.website) setWebsite(d.website);
+        if (d.address) setAddress(d.address);
       } else {
         navigate("/");
       }
@@ -111,6 +125,9 @@ const ProfileUpdate = () => {
           }
           alt=""
         />
+        {accountType === "business" && (
+          <span className="profile-account-badge">Business</span>
+        )}
         </div>
         <form onSubmit={profileUpdate}>
           <h3>Profile Details</h3>
@@ -138,7 +155,7 @@ const ProfileUpdate = () => {
             onChange={(e) => setName(e.target.value)}
             value={name}
             type="text"
-            placeholder="Your name"
+            placeholder="Your name / Company name"
             required
           />
 
@@ -149,6 +166,63 @@ const ProfileUpdate = () => {
             readOnly
             style={{ opacity: 0.7, cursor: "not-allowed" }}
           />
+
+          <div className="account-type-selector">
+            <label className={`radio-label ${accountType === "personal" ? "selected" : ""}`}>
+              <input
+                type="radio"
+                name="accountType"
+                value="personal"
+                checked={accountType === "personal"}
+                onChange={(e) => setAccountType(e.target.value)}
+              />
+              <span>Personal</span>
+            </label>
+            <label className={`radio-label ${accountType === "business" ? "selected" : ""}`}>
+              <input
+                type="radio"
+                name="accountType"
+                value="business"
+                checked={accountType === "business"}
+                onChange={(e) => setAccountType(e.target.value)}
+              />
+              <span>Business</span>
+            </label>
+          </div>
+
+          {accountType === "business" && (
+            <div className="business-info-card">
+              <h4>Business Information</h4>
+              <input
+                onChange={(e) => setCompanyName(e.target.value)}
+                value={companyName}
+                type="text"
+                placeholder="Company Name"
+                className="form-input"
+              />
+              <input
+                onChange={(e) => setIndustry(e.target.value)}
+                value={industry}
+                type="text"
+                placeholder="Industry"
+                className="form-input"
+              />
+              <input
+                onChange={(e) => setWebsite(e.target.value)}
+                value={website}
+                type="url"
+                placeholder="Website"
+                className="form-input"
+              />
+              <input
+                onChange={(e) => setAddress(e.target.value)}
+                value={address}
+                type="text"
+                placeholder="Business Address"
+                className="form-input"
+              />
+            </div>
+          )}
 
           <textarea
             onChange={(e) => setBio(e.target.value)}

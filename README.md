@@ -15,6 +15,7 @@ A modern, WhatsApp-inspired messaging application built with React, Firebase, an
 - **End-to-End Encryption** - RSA-OAEP + AES-GCM encrypted messages
 - **Auto-Resizable Input** - Multiline message input that grows with content
 - **Emoji Picker** - Built-in emoji selector for quick reactions
+- **WhatsApp Business Features** - Business accounts with invoice, notice, and data templates
 
 ## Technology Stack
 
@@ -43,6 +44,7 @@ npm run dev
 - Auto-resizable message input for long messages
 - End-to-end encrypted messaging
 - Built-in emoji picker for quick reactions
+- Business tools: invoice, notice, and data templates
 
 ### User Experience
 - Instant chat switching with automatic scroll to bottom
@@ -50,6 +52,7 @@ npm run dev
 - Online/offline status indicators
 - Profile editing and media view options
 - Responsive design for all screen sizes
+- Business profile with company info, industry, and website
 
 ### Security
 - End-to-end encryption using RSA-OAEP + AES-GCM
@@ -66,6 +69,7 @@ npm run dev
 - Mobile-first responsive design
 - Auto-resizing chat input
 - Built-in emoji picker
+- Business messaging templates
 
 ## Project Structure
 
@@ -74,12 +78,14 @@ ChatApp/
 ├── src/
 │   ├── components/
 │   │   ├── LeftSidebar/          # Chat list and search
-│   │   ├── ChatBox/              # Main chat interface
+│   │   ├── ChatBox/              # Main chat interface with business tools
 │   │   └── RightSidebar/         # Profile and media panel
 │   ├── context/                # App-level state management
 │   ├── config/                 # Firebase configuration
 │   ├── lib/                    # Utility functions (Cloudinary upload, E2EE)
 │   ├── pages/                  # Login, Chat, Profile Update
+│   │   ├── Login/              # Login with business account support
+│   │   └── ProfileUpdate/      # Profile with business fields
 │   ├── assets/                 # App assets (icons, images)
 │   └── index.css              # Global styles
 ├── .env                       # Environment variables
@@ -122,6 +128,8 @@ VITE_CLOUDINARY_FOLDER=chatnova
 - ✅ Media gallery viewing
 - ✅ Auto-resizable chat input
 - ✅ Emoji picker support
+- ✅ WhatsApp Business-style templates (Invoice, Notice, Data)
+- ✅ Business account type with company profile fields
 
 ### Security & Encryption
 - ✅ End-to-end message encryption (RSA-OAEP + AES-GCM)
@@ -150,6 +158,9 @@ The project has a solid foundation for future development:
 - **Group Chats** - Multi-user chat support
 - **Key Rotation** - End-to-end encryption key refresh workflow
 - **Forward Secrecy** - Per-message session keys
+- **Business Catalog** - Product catalog for business accounts
+- **Payment Integration** - Inline payments for invoices
+- **Business Analytics** - Message delivery and engagement stats
 
 ## Browser Support
 

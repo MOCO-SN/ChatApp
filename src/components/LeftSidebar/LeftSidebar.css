@@ -248,6 +248,27 @@
   text-overflow: ellipsis;
 }
 
+.friend-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.friend-business-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
 .friend-status {
   color: var(--online);
   font-size: 12px;
@@ -517,7 +538,18 @@
 .user-phone {
   color: rgba(255, 255, 255, 0.8);
   font-size: 13px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
+}
+
+.user-account-type {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  display: inline-block;
 }
 
 .user-status {

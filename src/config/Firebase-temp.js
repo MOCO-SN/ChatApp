@@ -35,14 +35,14 @@ const auth = getAuth(app);
 
 const db = getFirestore(app);
 
-const signup = async (username, email, password) => {
+const signup = async (username, email, password, accountType = "personal", businessInfo = {}) => {
   try {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const user = res.user;
 
     const publicKey = await E2EE.getPublicKeyBase64();
 
-    await setDoc(doc(db, "users", user.uid), {
+    const userData = {
       id: user.uid,
       username: username.toLowerCase().trim(),
       email,
@@ -51,7 +51,19 @@ const signup = async (username, email, password) => {
       bio: "Hey, There I am using MocoChat",
       lastSeen: Date.now(),
       publicKey,
-    });
+      accountType,
+      ...(accountType === "business" && {
+        companyName: businessInfo.companyName || "",
+        industry: businessInfo.industry || "",
+        website: businessInfo.website || "",
+        address: businessInfo.address || "",
+        phone: businessInfo.phone || "",
+        businessHours: businessInfo.businessHours || "",
+        verified: false,
+      }),
+    };
+
+    await setDoc(doc(db, "users", user.uid), userData);
 
     await setDoc(doc(db, "chats", user.uid), {
       chatsData: [],
