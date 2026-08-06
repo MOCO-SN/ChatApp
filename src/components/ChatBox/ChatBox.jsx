@@ -17,8 +17,10 @@ import uploadToCloudinary from "../../lib/cloudinary";
 const ChatBox = () => {
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [input, setInput] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
   const isFirstLoad = useRef(true);
+  const sendingRef = useRef(false);
 
   const {
     userData,
@@ -42,7 +44,7 @@ const ChatBox = () => {
 
   const updateChatLastMessage = async (lastMessageText) => {
     if (!chatUser) return;
-    
+
     const userIDs = [chatUser.rId, userData.id];
     for (const id of userIDs) {
       try {
@@ -76,13 +78,15 @@ const ChatBox = () => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || !messagesId || !chatUser) return;
+  const sendMessage = async (messageText) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim() || !messagesId || !chatUser || sendingRef.current) return;
+    sendingRef.current = true;
 
     try {
       const messageData = {
         sId: userData.id,
-        text: input,
+        text: textToSend,
         createdAt: new Date(),
         status: "sent",
       };
@@ -91,15 +95,15 @@ const ChatBox = () => {
         messages: arrayUnion(messageData),
       });
 
-      setMessages((prev) => [...prev, messageData]);
-      
-      updateChatLastMessage(input).catch((err) => {
+      updateChatLastMessage(textToSend).catch((err) => {
         console.error("Failed to update chat last message:", err);
       });
-      
+
       setInput("");
     } catch (error) {
       toast.error("Failed to send message: " + error.message);
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -107,7 +111,7 @@ const ChatBox = () => {
     try {
       const file = e.target.files[0];
       if (!file || !messagesId || !chatUser) return;
-      
+
       const fileUrl = await uploadToCloudinary(file);
 
       if (fileUrl && messagesId) {
@@ -122,7 +126,6 @@ const ChatBox = () => {
           messages: arrayUnion(messageData),
         });
 
-        setMessages((prev) => [...prev, messageData]);
         const lastMessageText = file.type.startsWith("video") ? "Video" : "Image";
         updateChatLastMessage(lastMessageText).catch((err) => {
           console.error("Failed to update chat last message:", err);
@@ -283,6 +286,39 @@ const ChatBox = () => {
     }
   }, [messages]);
 
+  const EMOJIS = [
+    "😀","😂","😊","😍","🥰","😘","😎","🤔","😢","😡",
+    "👍","👎","❤️","🔥","🎉","👏","🙏","💪","🌟","⭐",
+    "🎈","🎁","🏆","💯","✨","🌈","☀️","🌙","⚡","💡",
+    "🎵","🎶","📱","💻","📷","🎥","🎮","⚽","🏀","🎯",
+    "🚀","✈️","🍕","🍔","🍟","🌮","🍩","🍰","☕","🍺",
+    "💊","💉","🏠","🚗","⌚","🔒","🔑","💰","💎","📚",
+    "✏️","📝","📌","📎","🔗","💬","👋","🤝","🙌","👌",
+    "✌️","🤞","👆","👇","👈","👉","💔","💕","💖","💗",
+    "💓","💝","💘","💟","♥️","❣️","❤️‍🔥","💯","💢","💥",
+    "💫","💦","💨","🕳️","💣","💬","👤","👥","👣","🧠",
+    "👀","👁️","👅","👄","🦷","👂","🦻","👃","🦶","🦵",
+    "🦿","🧍","🧎","🧑","👶","👦","👧","🧒","👩","👨",
+    "👴","👵","🙍","🙎","🙅","🙆","💁","🙋","🧏","🙇",
+    "🤦","🤷","👨‍⚕️","👩‍⚕️","👨‍🎓","👩‍🎓","👨‍🏫","👩‍🏫",
+    "👨‍⚖️","👩‍⚖️","👨‍🌾","👩‍🌾","👨‍🍳","👩‍🍳","👨‍🔧","👩‍🔧",
+    "👨‍🏭","👩‍🏭","👨‍💼","👩‍💼","👨‍🔬","👩‍🔬","👨‍💻","👩‍💻",
+    "👨‍🎤","👩‍🎤","👨‍🎨","👩‍🎨","👨‍✈️","👩‍✈️","👨‍🚀","👩‍🚀",
+    "👨‍🚒","👩‍🚒","👮","🕵️","💂","🥷","👷","🤴","👸",
+    "👳","👲","🧕","🤰","🤱","👼","🎅","🤶","🦸","🦹",
+    "🧙","🧚","🧛","🧜","🧝","🧞","🧟","💆","💇","🚶",
+    "🧍","🧎","🏃","💃","🕺","🕴️","👯","🧖","🧘","🤵",
+    "🙇","💁","🙅","🙆","🙋","🙌","🙏","✍️","💪","🦾",
+    "🦿","🦵","🦶","👂","🦻","👃","🧠","🫀","🫁","🦷",
+    "🦴","👀","👁️","👅","👄","💋","👶","🧒","👦","👧",
+    "🧑","👱","👨","🧔","👩","🧓","👴","👵","🙍","🙎",
+    "🙅","🙆","💁","🙋","🧏","🙇","🤦","🤷","👨‍⚕️","👩‍⚕️",
+    "👨‍🎓","👩‍🎓","👨‍🏫","👩‍🏫","👨‍⚖️","👩‍⚖️","👨‍🌾","👩‍🌾",
+    "👨‍🍳","👩‍🍳","👨‍🔧","👩‍🔧","👨‍🏭","👩‍🏭","👨‍💼","👩‍💼",
+    "👨‍🔬","👩‍🔬","👨‍💻","👩‍💻","👨‍🎤","👩‍🎤","👨‍🎨","👩‍🎨",
+    "👨‍✈️","👩‍✈️","👨‍🚀","👩‍🚀","👨‍🚒","👩‍🚒"
+  ];
+
   return chatUser ? (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
@@ -377,8 +413,34 @@ const ChatBox = () => {
         <label htmlFor="image">
           <img src={assets.gallery_icon} alt="" />
         </label>
+
+        <div className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+          😊
+        </div>
+
         <img onClick={sendMessage} src={assets.send_button} />
       </div>
+
+      {showEmojiPicker && (
+        <div className="emoji-picker-overlay" onClick={() => setShowEmojiPicker(false)}>
+          <div className="emoji-picker" onClick={(e) => e.stopPropagation()}>
+            <div className="emoji-grid">
+              {EMOJIS.map((emoji, index) => (
+                <span
+                  key={index}
+                  className="emoji-item"
+                  onClick={() => {
+                    setShowEmojiPicker(false);
+                    sendMessage(emoji);
+                  }}
+                >
+                  {emoji}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {showProfilePopup && (
         <div className="profile-popup-overlay" onClick={() => setShowProfilePopup(false)}>
           <div className="profile-popup" onClick={(e) => e.stopPropagation()}>
