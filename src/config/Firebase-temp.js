@@ -29,6 +29,17 @@ const firebaseConfig = {
   appId: "1:91924224066:web:e21cddf4ebd1ab3eebb5db",
 };
 
+// const firebaseConfig = {
+//   apiKey: "AIzaSyDp7k_es-_fG1NW8qqfXfQIL9U1FKWRBLA",
+//   authDomain: "moco-player-f396a.firebaseapp.com",
+//   databaseURL: "https://moco-player-f396a-default-rtdb.asia-southeast1.firebasedatabase.app",
+//   projectId: "moco-player-f396a",
+//   storageBucket: "moco-player-f396a.appspot.com",
+//   messagingSenderId: "96132308835",
+//   appId: "1:96132308835:web:d64a11ef6878fdeadbbd56",
+//   measurementId: "G-9VTFQR6XFY"
+// };
+
 // prevent duplicate init
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
@@ -70,7 +81,11 @@ const signup = async (username, email, password, accountType = "personal", busin
     });
   } catch (error) {
     console.error(error);
-    toast.error(error.code.split("/")[1].split("-").join(" "));
+    const codePart = error?.code || "";
+    const message = codePart.includes("/")
+      ? codePart.split("/")[1].split("-").join(" ")
+      : error.message || "Signup failed";
+    toast.error(message);
   }
 };
 
@@ -84,7 +99,11 @@ const login = async (email, password) => {
     }
   } catch (error) {
     console.error(error);
-    toast.error(error.code.split("/")[1].split("-").join(" "));
+    const codePart = error?.code || "";
+    const message = codePart.includes("/")
+      ? codePart.split("/")[1].split("-").join(" ")
+      : error.message || "Login failed";
+    toast.error(message);
   }
 };
 
@@ -93,7 +112,11 @@ const logout = async () => {
     await signOut(auth);
   } catch (error) {
     console.error(error);
-    toast.error(error.code.split("/")[1].split("-").join(" "));
+    const codePart = error?.code || "";
+    const message = codePart.includes("/")
+      ? codePart.split("/")[1].split("-").join(" ")
+      : error.message || "Logout failed";
+    toast.error(message);
   }
 };
 const resetPass = async (email) => {

@@ -21,10 +21,15 @@ const ChatBox = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showBusinessPanel, setShowBusinessPanel] = useState(false);
   const [businessTemplate, setBusinessTemplate] = useState("invoice");
+  const [invoiceAttachments, setInvoiceAttachments] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const messagesEndRef = useRef(null);
   const isFirstLoad = useRef(true);
   const sendingRef = useRef(false);
   const textareaRef = useRef(null);
+  const audioRef = useRef(null);
 
   const {
     userData,
@@ -156,7 +161,80 @@ const ChatBox = () => {
     }
   };
 
-  const sendBusinessMessage = async (templateType, data) => {
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioFile = new File([audioBlob], "audio.webm", { type: "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+        await sendAudio(audioFile);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Failed to start recording:", error);
+      toast.error("Microphone access denied or unavailable");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
+  };
+
+  const sendAudio = async (audioFile) => {
+    if (!messagesId || !chatUser || sendingRef.current) return;
+    sendingRef.current = true;
+
+    try {
+      const fileUrl = await uploadToCloudinary(audioFile);
+
+      if (fileUrl && messagesId) {
+        const messageData = {
+          sId: userData.id,
+          audio: fileUrl,
+          createdAt: new Date(),
+          status: "sent",
+        };
+
+        await updateDoc(doc(db, "messages", messagesId), {
+          messages: arrayUnion(messageData),
+        });
+
+        updateChatLastMessage("Audio").catch((err) => {
+          console.error("Failed to update chat last message:", err);
+        });
+      }
+    } catch (error) {
+      toast.error("Failed to send audio: " + error.message);
+    } finally {
+      sendingRef.current = false;
+    }
+  };
+
+  const sendBusinessMessage = async (templateType, data, attachments = []) => {
     if (!messagesId || !chatUser || sendingRef.current) return;
     sendingRef.current = true;
 
@@ -201,6 +279,22 @@ const ChatBox = () => {
           `Date: ${data.date || new Date().toLocaleDateString()}`;
       }
 
+      const uploadedAttachments = [];
+      for (const file of attachments) {
+        try {
+          const url = await uploadToCloudinary(file);
+          uploadedAttachments.push({
+            type: file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "file",
+            url,
+            name: file.name,
+            mimeType: file.type,
+          });
+        } catch (uploadError) {
+          console.error("Failed to upload attachment:", uploadError);
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      }
+
       const messageData = {
         sId: userData.id,
         text: messageText,
@@ -209,6 +303,7 @@ const ChatBox = () => {
         messageType,
         templateType,
         ...(userData.accountType === "business" ? { senderCompany: data.companyName || userData.name } : {}),
+        ...(uploadedAttachments.length > 0 && { attachments: uploadedAttachments }),
       };
 
       await updateDoc(doc(db, "messages", messagesId), {
@@ -220,6 +315,7 @@ const ChatBox = () => {
       });
 
       setShowBusinessPanel(false);
+      setInvoiceAttachments([]);
     } catch (error) {
       toast.error("Failed to send business message: " + error.message);
     } finally {
@@ -472,9 +568,30 @@ const ChatBox = () => {
                 <img className="msg-img" src={msg.image} alt="" />
               ) : msg["video"] ? (
                 <video className="msg-img" src={msg.video} controls />
+              ) : msg["audio"] ? (
+                <div className="msg-audio">
+                  <audio ref={audioRef} src={msg.audio} controls preload="none" />
+                </div>
               ) : (
                 <p className="msg">
                   {msg.text}
+                  {msg.attachments?.length > 0 && (
+                    <div className="msg-attachments">
+                      {msg.attachments.map((att, idx) => (
+                        <div key={idx} className="msg-attachment">
+                          {att.type === "image" ? (
+                            <img src={att.url} alt={att.name} />
+                          ) : att.type === "video" ? (
+                            <video src={att.url} controls />
+                          ) : (
+                            <a href={att.url} target="_blank" rel="noreferrer" className="file-link">
+                              📄 {att.name}
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <span className="msg-bottom">
                     <span className={getTickClassName(msg)}>
                       {getTickIcon(msg)}
@@ -535,6 +652,14 @@ const ChatBox = () => {
         <label htmlFor="image">
           <img src={assets.gallery_icon} alt="" />
         </label>
+
+        <div
+          className={`emoji-btn audio-btn ${isRecording ? "recording" : ""}`}
+          onClick={toggleRecording}
+          title={isRecording ? "Stop recording" : "Record audio"}
+        >
+          {isRecording ? "⏹" : "🎤"}
+        </div>
 
         <div className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
           😊
@@ -630,9 +755,32 @@ const ChatBox = () => {
                     <option value="Paid">Paid</option>
                     <option value="Overdue">Overdue</option>
                   </select>
+                  <input
+                    id="invoice-attachments"
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setInvoiceAttachments(files);
+                    }}
+                    hidden
+                  />
+                  <label htmlFor="invoice-attachments" className="attach-btn">
+                    📎 Attach Files ({invoiceAttachments.length})
+                  </label>
+                  {invoiceAttachments.length > 0 && (
+                    <div className="attachment-list">
+                      {invoiceAttachments.map((file, idx) => (
+                        <span key={idx} className="attachment-chip">
+                          {file.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <button
                     className="send-template-btn"
-                    onClick={() => {
+                    onClick={async () => {
                       const data = {
                         companyName: document.getElementById("invoice-company")?.value || userData.name,
                         invoiceNumber: document.getElementById("invoice-number")?.value,
@@ -640,7 +788,8 @@ const ChatBox = () => {
                         amount: document.getElementById("invoice-amount")?.value,
                         status: document.getElementById("invoice-status")?.value,
                       };
-                      sendBusinessMessage("invoice", data);
+                      await sendBusinessMessage("invoice", data, invoiceAttachments);
+                      setInvoiceAttachments([]);
                     }}
                   >
                     Send Invoice
