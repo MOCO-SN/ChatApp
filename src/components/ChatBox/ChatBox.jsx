@@ -22,6 +22,7 @@ const ChatBox = () => {
   const messagesEndRef = useRef(null);
   const isFirstLoad = useRef(true);
   const sendingRef = useRef(false);
+  const textareaRef = useRef(null);
 
   const {
     userData,
@@ -85,15 +86,17 @@ const ChatBox = () => {
     sendingRef.current = true;
 
     try {
-      let e2eePayload = null;
-      try {
-        const recipientDoc = await getDoc(doc(db, "users", chatUser.rId));
-        if (recipientDoc.exists() && recipientDoc.data()?.publicKey) {
-          e2eePayload = await E2EE.encrypt(textToSend, recipientDoc.data().publicKey);
+      const e2eePayload = await (async () => {
+        try {
+          const recipientDoc = await getDoc(doc(db, "users", chatUser.rId));
+          if (recipientDoc.exists() && recipientDoc.data()?.publicKey) {
+            return await E2EE.encrypt(textToSend, recipientDoc.data().publicKey);
+          }
+        } catch (e2eeError) {
+          console.warn("E2EE encrypt failed, sending plaintext fallback:", e2eeError);
         }
-      } catch (e2eeError) {
-        console.warn("E2EE encrypt failed, sending plaintext fallback:", e2eeError);
-      }
+        return null;
+      })();
 
       const messageData = {
         sId: userData.id,
@@ -111,6 +114,9 @@ const ChatBox = () => {
       });
 
       setInput("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
     } catch (error) {
       toast.error("Failed to send message: " + error.message);
     } finally {
@@ -312,6 +318,12 @@ const ChatBox = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (textareaRef.current && !input) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [input]);
+
   const EMOJIS = [
     "😀","😂","😊","😍","🥰","😘","😎","🤔","😢","😡",
     "👍","👎","❤️","🔥","🎉","👏","🙏","💪","🌟","⭐",
@@ -421,6 +433,7 @@ const ChatBox = () => {
 
       <div className="chat-input">
         <textarea
+          ref={textareaRef}
           onChange={(e) => {
             setInput(e.target.value);
             e.target.style.height = "auto";
@@ -453,7 +466,12 @@ const ChatBox = () => {
           😊
         </div>
 
-        <img onClick={sendMessage} src={assets.send_button} />
+        <button type="button" className="send-btn" onClick={() => {
+          const value = textareaRef.current?.value || input || "";
+          if (value.trim()) sendMessage(value);
+        }} aria-label="Send">
+          <img src={assets.send_button} alt="Send" />
+        </button>
       </div>
 
       {showEmojiPicker && (
