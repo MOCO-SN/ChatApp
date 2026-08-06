@@ -1,6 +1,6 @@
 # Chat Nova - WhatsApp-style Real-time Messaging App
 
-A modern, WhatsApp-inspired messaging application built with React, Firebase, and Vite. Features a clean, glass-morphism design with smooth animations and real-time chat functionality.
+A modern, WhatsApp-inspired messaging application built with React, Firebase, and Vite. Features a clean, glass-morphism design with smooth animations, real-time chat functionality, and end-to-end encrypted messaging.
 
 ## Key Features
 
@@ -12,12 +12,16 @@ A modern, WhatsApp-inspired messaging application built with React, Firebase, an
 - **User Status** - Online/offline indicators with timestamp
 - **Chat Search** - Quick search functionality
 - **Profile Management** - Edit profile, view media, and account settings
+- **End-to-End Encryption** - RSA-OAEP + AES-GCM encrypted messages
+- **Auto-Resizable Input** - Multiline message input that grows with content
+- **Emoji Picker** - Built-in emoji selector for quick reactions
 
 ## Technology Stack
 
-- **Frontend**: React 19, Vite 7, TypeScript
+- **Frontend**: React, Vite, JavaScript
 - **Styling**: CSS with modern custom properties
 - **Backend**: Firebase (Authentication, Firestore)
+- **Encryption**: Web Crypto API (RSA-OAEP + AES-GCM)
 - **File Upload**: Cloudinary integration
 - **State Management**: React Context API
 
@@ -36,6 +40,9 @@ npm run dev
 - Real-time message updates with smooth scrolling
 - File attachment support (images and videos)
 - Timestamp display for each message
+- Auto-resizable message input for long messages
+- End-to-end encrypted messaging
+- Built-in emoji picker for quick reactions
 
 ### User Experience
 - Instant chat switching with automatic scroll to bottom
@@ -44,12 +51,21 @@ npm run dev
 - Profile editing and media view options
 - Responsive design for all screen sizes
 
+### Security
+- End-to-end encryption using RSA-OAEP + AES-GCM
+- Private keys stored locally in browser storage
+- Public keys shared via Firestore user profiles
+- Graceful fallback to plaintext if recipient keys are unavailable
+
 ### Technical Highlights
 - Firebase authentication and real-time database
 - Cloudinary for file uploads
 - Glass-morphism UI with backdrop-blur effects
+- End-to-end encryption with Web Crypto API
 - Smooth animations and transitions
 - Mobile-first responsive design
+- Auto-resizing chat input
+- Built-in emoji picker
 
 ## Project Structure
 
@@ -62,7 +78,7 @@ ChatApp/
 │   │   └── RightSidebar/         # Profile and media panel
 │   ├── context/                # App-level state management
 │   ├── config/                 # Firebase configuration
-│   ├── lib/                    # Utility functions (Cloudinary upload)
+│   ├── lib/                    # Utility functions (Cloudinary upload, E2EE)
 │   ├── pages/                  # Login, Chat, Profile Update
 │   ├── assets/                 # App assets (icons, images)
 │   └── index.css              # Global styles
@@ -104,6 +120,14 @@ VITE_CLOUDINARY_FOLDER=chatnova
 - ✅ Chat search functionality
 - ✅ Profile management
 - ✅ Media gallery viewing
+- ✅ Auto-resizable chat input
+- ✅ Emoji picker support
+
+### Security & Encryption
+- ✅ End-to-end message encryption (RSA-OAEP + AES-GCM)
+- ✅ Per-user key pair generation and storage
+- ✅ Public key distribution via Firestore user profiles
+- ✅ Graceful plaintext fallback when recipient keys are unavailable
 
 ### Technical Enhancements
 - ✅ Firebase integration for real-time messaging
@@ -118,13 +142,14 @@ VITE_CLOUDINARY_FOLDER=chatnova
 The project has a solid foundation for future development:
 
 - **Dark Mode** - Toggle between light and dark themes
-- **Emoji Support** - Add emoji reactions and support
+- **Emoji Reactions** - Add emoji reactions to messages
 - **Message Read Receipts** - Track message delivery status
 - **Typing Indicators** - Show when others are typing
 - **Message Search** - Search within conversations
 - **Call Integration** - Voice and video call functionality
 - **Group Chats** - Multi-user chat support
-- **File Encryption** - Secure file transfers
+- **Key Rotation** - End-to-end encryption key refresh workflow
+- **Forward Secrecy** - Per-message session keys
 
 ## Browser Support
 

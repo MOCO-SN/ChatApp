@@ -318,7 +318,7 @@
   position: relative;
 }
 
-.chat-input input[type="text"] {
+.chat-input textarea {
   flex: 1;
   border: none;
   outline: none;
@@ -332,9 +332,10 @@
   min-height: 46px;
   line-height: 1.5;
   resize: none;
+  overflow-y: auto;
 }
 
-.chat-input input[type="text"]::placeholder {
+.chat-input textarea::placeholder {
   color: #9ca3af;
 }
 

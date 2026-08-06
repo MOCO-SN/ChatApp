@@ -13,6 +13,7 @@ import {
 import { db } from "../../config/Firebase-temp";
 import { toast } from "react-toastify";
 import uploadToCloudinary from "../../lib/cloudinary";
+import E2EE from "../../lib/e2ee";
 
 const ChatBox = () => {
   const [showProfilePopup, setShowProfilePopup] = useState(false);
@@ -84,11 +85,21 @@ const ChatBox = () => {
     sendingRef.current = true;
 
     try {
+      let e2eePayload = null;
+      try {
+        const recipientDoc = await getDoc(doc(db, "users", chatUser.rId));
+        if (recipientDoc.exists() && recipientDoc.data()?.publicKey) {
+          e2eePayload = await E2EE.encrypt(textToSend, recipientDoc.data().publicKey);
+        }
+      } catch (e2eeError) {
+        console.warn("E2EE encrypt failed, sending plaintext fallback:", e2eeError);
+      }
+
       const messageData = {
         sId: userData.id,
-        text: textToSend,
         createdAt: new Date(),
         status: "sent",
+        ...(e2eePayload ? { e2ee: e2eePayload } : { text: textToSend }),
       };
 
       await updateDoc(doc(db, "messages", messagesId), {
@@ -231,11 +242,26 @@ const ChatBox = () => {
       }
     }, 0);
 
-    const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
+    const unSub = onSnapshot(doc(db, "messages", messagesId), async (res) => {
       const msgs = res.data()?.messages || [];
-      setMessages(msgs);
+      const decrypted = await Promise.all(
+        msgs.map(async (msg) => {
+          if (msg.e2ee) {
+            try {
+              const keyPair = await E2EE.getOrCreateKeyPair();
+              const text = await E2EE.decrypt(msg.e2ee, keyPair.privateKey);
+              return { ...msg, text };
+            } catch (err) {
+              console.error("Decryption failed for message:", err);
+              return { ...msg, text: "[Encrypted message - unable to decrypt]" };
+            }
+          }
+          return msg;
+        })
+      );
+      setMessages(decrypted);
 
-      const lastMsg = msgs[msgs.length - 1];
+      const lastMsg = decrypted[decrypted.length - 1];
       if (lastMsg && lastMsg.sId !== userData.id && lastMsg.status === "sent") {
         const msgRef = doc(db, "messages", messagesId);
         const msgData = res.data();
@@ -394,12 +420,21 @@ const ChatBox = () => {
       </div>
 
       <div className="chat-input">
-        <input
-          onChange={(e) => setInput(e.target.value)}
+        <textarea
+          onChange={(e) => {
+            setInput(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+          }}
           value={input}
-          type="text"
           placeholder="Send a message"
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          rows={1}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
         />
 
         <input

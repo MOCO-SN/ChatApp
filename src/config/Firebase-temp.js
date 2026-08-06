@@ -15,8 +15,10 @@ import {
   query,
   where,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
+import E2EE from "../lib/e2ee";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC57OazOqcOQWP4aIjUmhV3pmJl2aUyINE",
@@ -38,6 +40,8 @@ const signup = async (username, email, password) => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const user = res.user;
 
+    const publicKey = await E2EE.getPublicKeyBase64();
+
     await setDoc(doc(db, "users", user.uid), {
       id: user.uid,
       username: username.toLowerCase().trim(),
@@ -46,6 +50,7 @@ const signup = async (username, email, password) => {
       avatar: "",
       bio: "Hey, There I am using MocoChat",
       lastSeen: Date.now(),
+      publicKey,
     });
 
     await setDoc(doc(db, "chats", user.uid), {
@@ -60,6 +65,11 @@ const signup = async (username, email, password) => {
 const login = async (email, password) => {
   try {
     await signInWithEmailAndPassword(auth, email, password);
+    const user = auth.currentUser;
+    if (user) {
+      const publicKey = await E2EE.getPublicKeyBase64();
+      await updateDoc(doc(db, "users", user.uid), { publicKey }).catch(() => {});
+    }
   } catch (error) {
     console.error(error);
     toast.error(error.code.split("/")[1].split("-").join(" "));
