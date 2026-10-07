@@ -6,8 +6,8 @@ import { auth, db } from "../../config/Firebase-temp";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import uploadToCloudinary from "../../lib/cloudinary";
 import { AppContext } from "../../context/AppContext";
+import { uploadToCloudinary } from "../../lib/cloudinary";
 
 const ProfileUpdate = () => {
   const navigate = useNavigate();

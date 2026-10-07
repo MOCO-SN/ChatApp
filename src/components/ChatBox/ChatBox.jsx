@@ -12,8 +12,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/Firebase-temp";
 import { toast } from "react-toastify";
-import uploadToCloudinary from "../../lib/cloudinary";
+
 import E2EE from "../../lib/e2ee";
+import { uploadToCloudinary } from "../../lib/cloudinary";
 
 const ChatBox = () => {
   const [showProfilePopup, setShowProfilePopup] = useState(false);

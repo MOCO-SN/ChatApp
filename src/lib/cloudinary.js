@@ -1,40 +1,36 @@
-// const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-// const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-// const FOLDER = import.meta.env.VITE_CLOUDINARY_FOLDER;
 
-const CLOUD_NAME = "dpgyfh39j";
-const UPLOAD_PRESET = "chatme";
-const FOLDER = "assets_chat";
+import { uploadDocument } from "../api/service";
+
 /**
- * Upload image OR video to Cloudinary (unsigned).
- * Auto-detects type via /auto/upload endpoint.
- * @param {File} file
- * @returns {Promise<string>} public URL
+ * Uploads a file to Cloudinary securely via our PHP backend proxy.
+ * This completely hides our Cloudinary credentials from the frontend!
  */
-const uploadToCloudinary = async (file) => {
-  if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new Error("Cloudinary env vars missing");
-  }
-
-  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
-
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", FOLDER);
-
-  const res = await fetch(url, {
-    method: "POST",
-    body: formData,
+export const uploadToCloudinary = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    // Convert the File object to a Base64 string for secure transport
+    reader.readAsDataURL(file);
+    
+    reader.onload = async () => {
+      try {
+        const base64File = reader.result;
+        
+        // Pass the base64 string to our secure PHP backend via apiService
+        const result = await uploadDocument(base64File);
+        
+        if (result.error) {
+          throw new Error(result.error.message || 'Unknown Cloudinary error');
+        }
+        
+        resolve(result); // The PHP backend returns the exact Cloudinary JSON response
+      } catch (err) {
+        reject(err);
+      }
+    };
+    
+    reader.onerror = (error) => reject(error);
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || "Cloudinary upload failed");
-  }
-
-  const data = await res.json();
-  return data.secure_url;
 };
 
-export default uploadToCloudinary;
+

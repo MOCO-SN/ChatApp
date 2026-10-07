@@ -19,15 +19,10 @@ import {
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import E2EE from "../lib/e2ee";
+import { fetchFirebaseConfig } from "../api/service";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyC57OazOqcOQWP4aIjUmhV3pmJl2aUyINE",
-  authDomain: "chatnova-gs-ab31a.firebaseapp.com",
-  projectId: "chatnova-gs-ab31a",
-  storageBucket: "chatnova-gs-ab31a.appspot.com",
-  messagingSenderId: "91924224066",
-  appId: "1:91924224066:web:e21cddf4ebd1ab3eebb5db",
-};
+const firebaseConfig = await fetchFirebaseConfig();
+
 
 // prevent duplicate init
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

@@ -1,0 +1,8 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyC57OazOqcOQWP4aIjUmhV3pmJl2aUyINE",
+  authDomain: "chatnova-gs-ab31a.firebaseapp.com",
+  projectId: "chatnova-gs-ab31a",
+  storageBucket: "chatnova-gs-ab31a.appspot.com",
+  messagingSenderId: "91924224066",
+  appId: "1:91924224066:web:e21cddf4ebd1ab3eebb5db",
+};
