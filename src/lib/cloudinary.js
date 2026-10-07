@@ -94,18 +94,14 @@ export const uploadToCloudinary = async (file) => {
     }
   }
 
-  // 2. For Audio / Voice recordings
+  // 2. For Audio / Voice recordings (Direct method, uncompressed)
   if (file.type && file.type.startsWith("audio/")) {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = async () => {
-        let base64File = reader.result;
-        if (typeof base64File === "string" && base64File.startsWith("data:audio/")) {
-          base64File = base64File.replace(/^data:(audio\/[a-zA-Z0-9_-]+)(;codecs=[^;]+)?(;base64,)/, "data:$1$3");
-        }
-
+        const directAudioData = reader.result;
         try {
-          const result = await uploadDocument(base64File);
+          const result = await uploadDocument(directAudioData);
           if (result && !result.error && (result.secure_url || result.url)) {
             resolve(result.secure_url || result.url);
             return;
@@ -119,11 +115,10 @@ export const uploadToCloudinary = async (file) => {
             resolve(result);
             return;
           }
-          console.warn("Cloudinary audio upload rejected, using base64 fallback:", result?.error);
-          resolve(base64File);
+          resolve(directAudioData);
         } catch (err) {
-          console.warn("Cloudinary audio upload failed, using base64 fallback:", err);
-          resolve(base64File);
+          console.warn("Direct audio upload fallback:", err);
+          resolve(directAudioData);
         }
       };
       reader.onerror = () => resolve(null);

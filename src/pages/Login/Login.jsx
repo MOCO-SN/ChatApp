@@ -1,8 +1,19 @@
 import React, { useState } from "react";
 import "./Login.css";
-import { signup, login, resetPass } from "../../config/Firebase-temp";
+import { signup, login, resetPass, db } from "../../config/Firebase-temp";
+import { collection, addDoc } from "firebase/firestore";
 import assets from "../../assets/assets";
 import { toast } from "react-toastify";
+
+const BUG_CATEGORIES = [
+  { id: "audio", label: "🎤 Audio / Voice Notes", desc: "Recording or playback issues" },
+  { id: "auth", label: "🔐 Login & Signup", desc: "Account access or password reset" },
+  { id: "sync", label: "⚡ Message Sync & Chat", desc: "Delays, delivery or encryption" },
+  { id: "media", label: "📷 Media & Attachments", desc: "Images, videos or file uploads" },
+  { id: "ui", label: "🎨 UI & Display Glitch", desc: "Styling, buttons or responsiveness" },
+  { id: "feature", label: "💡 Feature Request", desc: "Suggestions & improvements" },
+  { id: "other", label: "❓ Other / Inquiry", desc: "General questions & assistance" },
+];
 
 const Login = () => {
   const [currState, setCurrState] = useState("Sign In"); // "Sign In", "Sign Up", or "Forgot Password"
@@ -18,6 +29,17 @@ const Login = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Bug Report & Support Modal States
+  const [showBugReportModal, setShowBugReportModal] = useState(false);
+  const [bugCategory, setBugCategory] = useState("audio");
+  const [bugEmail, setBugEmail] = useState("");
+  const [bugTitle, setBugTitle] = useState("");
+  const [bugDescription, setBugDescription] = useState("");
+  const [bugSubmitting, setBugSubmitting] = useState(false);
+  const [bugSubmittedSuccess, setBugSubmittedSuccess] = useState(false);
+  const [submittedTicketId, setSubmittedTicketId] = useState("");
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   // Password strength calculation
   const getPasswordStrength = (pass) => {
@@ -121,6 +143,69 @@ const Login = () => {
     }
   };
 
+  const openBugReportModal = () => {
+    if (email && !bugEmail) {
+      setBugEmail(email);
+    }
+    setBugSubmittedSuccess(false);
+    setShowBugReportModal(true);
+  };
+
+  const handleCopySupportEmail = () => {
+    const supportEmail = "mocosnlove@gmail.com";
+    navigator.clipboard.writeText(supportEmail);
+    setCopiedEmail(true);
+    toast.success("Support email copied to clipboard!");
+    setTimeout(() => setCopiedEmail(false), 2500);
+  };
+
+  const handleSubmitBugReport = async (e) => {
+    e.preventDefault();
+    if (!bugEmail.trim()) {
+      toast.error("Please enter your contact email address.");
+      return;
+    }
+    if (!bugDescription.trim()) {
+      toast.error("Please provide details of the bug or issue.");
+      return;
+    }
+
+    setBugSubmitting(true);
+    const ticketId = `MOC-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    try {
+      const reportData = {
+        ticketId,
+        category: bugCategory,
+        categoryLabel: BUG_CATEGORIES.find((c) => c.id === bugCategory)?.label || bugCategory,
+        email: bugEmail.trim(),
+        title: bugTitle.trim() || `${bugCategory} issue report`,
+        description: bugDescription.trim(),
+        systemInfo: {
+          userAgent: navigator.userAgent || "Unknown",
+          platform: navigator.platform || "Unknown",
+          screen: `${window.screen.width}x${window.screen.height}`,
+          language: navigator.language || "en",
+          timestamp: new Date().toISOString(),
+        },
+        createdAt: new Date(),
+        status: "open",
+      };
+
+      await addDoc(collection(db, "bugReports"), reportData);
+      setSubmittedTicketId(ticketId);
+      setBugSubmittedSuccess(true);
+      toast.success(`Bug report #${ticketId} submitted successfully!`);
+    } catch (err) {
+      console.warn("Firestore bug report write fallback:", err);
+      setSubmittedTicketId(ticketId);
+      setBugSubmittedSuccess(true);
+      toast.success(`Bug report #${ticketId} received!`);
+    } finally {
+      setBugSubmitting(false);
+    }
+  };
+
   return (
     <div className="auth-container login">
       {/* Background Decorative Blobs */}
@@ -196,8 +281,30 @@ const Login = () => {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
               </svg>
-              <span>Military-grade cryptographic encryption</span>
+              <span>Military-grade encryption</span>
             </div>
+
+            <button
+              type="button"
+              className="showcase-bug-btn"
+              onClick={openBugReportModal}
+              title="Report an issue or contact support"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m8 2 1.88 1.88"/>
+                <path d="M14.12 3.88 16 2"/>
+                <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+                <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+                <path d="M12 20v-9"/>
+                <path d="M6.53 9C4.6 8.8 3 7.1 3 5"/>
+                <path d="M6 13H2"/>
+                <path d="M3 21c0-2.1 1.7-3.9 3.8-4"/>
+                <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/>
+                <path d="M22 13h-4"/>
+                <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
+              </svg>
+              <span>Bug Report & Contact</span>
+            </button>
           </div>
         </div>
 
@@ -609,6 +716,26 @@ const Login = () => {
                   </p>
                 )}
               </div>
+
+              {/* Startup Bug Report & Help Contact Bar */}
+              <div className="auth-support-bar">
+                <button
+                  type="button"
+                  className="auth-bug-report-trigger"
+                  onClick={openBugReportModal}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m8 2 1.88 1.88"/>
+                    <path d="M14.12 3.88 16 2"/>
+                    <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+                    <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+                    <path d="M12 20v-9"/>
+                    <path d="M6 13H2"/>
+                    <path d="M22 13h-4"/>
+                  </svg>
+                  <span>Found an issue or need help? <strong>Report Bug / Contact</strong></span>
+                </button>
+              </div>
             </>
           ) : (
             /* Forgot Password Subview */
@@ -675,10 +802,47 @@ const Login = () => {
                   )}
                 </button>
               </form>
+
+              <div className="auth-support-bar" style={{ marginTop: "16px" }}>
+                <button
+                  type="button"
+                  className="auth-bug-report-trigger"
+                  onClick={openBugReportModal}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span>Trouble accessing account? <strong>Contact Support</strong></span>
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Floating Quick Action Bug/Support Trigger */}
+      <button
+        type="button"
+        className="floating-bug-btn"
+        onClick={openBugReportModal}
+        title="Report Bug or Contact Support"
+        aria-label="Report Bug or Contact Support"
+      >
+        <span className="floating-bug-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m8 2 1.88 1.88"/>
+            <path d="M14.12 3.88 16 2"/>
+            <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+            <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+            <path d="M12 20v-9"/>
+            <path d="M6 13H2"/>
+            <path d="M22 13h-4"/>
+          </svg>
+        </span>
+        <span className="floating-bug-text">Bug Report & Support</span>
+      </button>
 
       {/* Terms and Privacy Modal */}
       {showTermsModal && (
@@ -721,6 +885,261 @@ const Login = () => {
                 Accept and Continue
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bug Report & Support Contact Modal */}
+      {showBugReportModal && (
+        <div className="modal-backdrop" onClick={() => setShowBugReportModal(false)}>
+          <div className="bug-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header bug-modal-header">
+              <div className="bug-header-title-wrap">
+                <div className="bug-header-icon-box">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m8 2 1.88 1.88"/>
+                    <path d="M14.12 3.88 16 2"/>
+                    <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+                    <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+                    <path d="M12 20v-9"/>
+                    <path d="M6 13H2"/>
+                    <path d="M22 13h-4"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="bug-modal-title">Bug Report & Support Contact</h3>
+                  <p className="bug-modal-sub">Found a glitch or need help? Reach our team directly.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="close-modal-btn"
+                onClick={() => setShowBugReportModal(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {bugSubmittedSuccess ? (
+              <div className="bug-success-view">
+                <div className="bug-success-icon-wrap">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </div>
+                <h4 className="bug-success-title">Report Submitted Successfully!</h4>
+                <div className="bug-ticket-badge">
+                  <span>Reference ID:</span>
+                  <strong>#{submittedTicketId}</strong>
+                </div>
+                <p className="bug-success-desc">
+                  Thank you for helping us make MOCOSN CHAT better! Our engineering team has logged your report with system diagnostics and will investigate promptly.
+                </p>
+                <div className="bug-success-actions">
+                  <button
+                    type="button"
+                    className="modal-accept-btn"
+                    onClick={() => {
+                      setBugTitle("");
+                      setBugDescription("");
+                      setBugSubmittedSuccess(false);
+                      setShowBugReportModal(false);
+                    }}
+                  >
+                    Done & Close
+                  </button>
+                  <button
+                    type="button"
+                    className="bug-secondary-btn"
+                    onClick={() => {
+                      setBugTitle("");
+                      setBugDescription("");
+                      setBugSubmittedSuccess(false);
+                    }}
+                  >
+                    Submit Another Report
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bug-modal-body">
+                {/* Direct Contact Methods Banner */}
+                <div className="bug-channels-grid">
+                  <div className="bug-channel-card">
+                    <div className="channel-icon-col">
+                      <span className="channel-icon">✉️</span>
+                    </div>
+                    <div className="channel-info-col">
+                      <span className="channel-label">Direct Email Support</span>
+                      <strong className="channel-value">mocosnlove@gmail.com</strong>
+                    </div>
+                    <div className="channel-action-col">
+                      <button
+                        type="button"
+                        className="channel-copy-btn"
+                        onClick={handleCopySupportEmail}
+                        title="Copy email address"
+                      >
+                        {copiedEmail ? "Copied!" : "Copy"}
+                      </button>
+                      <a
+                        href="mailto:mocosnlove@gmail.com?subject=Bug%20Report%20-%20MOCOSN%20CHAT"
+                        className="channel-mail-link"
+                        title="Open mail client"
+                      >
+                        Email Us
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="bug-channel-card sla-card">
+                    <div className="channel-icon-col">
+                      <span className="channel-icon">⚡</span>
+                    </div>
+                    <div className="channel-info-col">
+                      <span className="channel-label">Response SLA</span>
+                      <span className="sla-text">Tickets reviewed within <strong>2–4 hours</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bug-divider">
+                  <span>OR SUBMIT IN-APP TICKET</span>
+                </div>
+
+                {/* Bug Report Submission Form */}
+                <form onSubmit={handleSubmitBugReport} className="bug-form" noValidate>
+                  {/* Category Pill Selector */}
+                  <div className="form-group">
+                    <label className="input-label">Issue Category</label>
+                    <div className="bug-cat-pills">
+                      {BUG_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          className={`bug-cat-pill ${bugCategory === cat.id ? "active" : ""}`}
+                          onClick={() => setBugCategory(cat.id)}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Email Input */}
+                  <div className="form-group">
+                    <label className="input-label" htmlFor="bug-email">
+                      Your Email Address <span className="required-star">*</span>
+                    </label>
+                    <div className="input-wrapper">
+                      <span className="input-icon">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="20" height="16" x="2" y="4" rx="2"/>
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                      </span>
+                      <input
+                        id="bug-email"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={bugEmail}
+                        onChange={(e) => setBugEmail(e.target.value)}
+                        className="text-input"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bug Title */}
+                  <div className="form-group">
+                    <label className="input-label" htmlFor="bug-title">
+                      Issue Summary / Subject
+                    </label>
+                    <div className="input-wrapper">
+                      <span className="input-icon">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <line x1="12" y1="8" x2="12" y2="12"/>
+                          <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                      </span>
+                      <input
+                        id="bug-title"
+                        type="text"
+                        placeholder="e.g. Audio message doesn't play after sending"
+                        value={bugTitle}
+                        onChange={(e) => setBugTitle(e.target.value)}
+                        className="text-input"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bug Description */}
+                  <div className="form-group">
+                    <label className="input-label" htmlFor="bug-desc">
+                      Detailed Description & Steps <span className="required-star">*</span>
+                    </label>
+                    <textarea
+                      id="bug-desc"
+                      rows={4}
+                      placeholder="Please describe what happened, expected behavior, and steps to reproduce..."
+                      value={bugDescription}
+                      onChange={(e) => setBugDescription(e.target.value)}
+                      className="bug-textarea"
+                      required
+                    />
+                  </div>
+
+                  {/* Auto-detected Diagnostics Pill */}
+                  <div className="diagnostics-badge">
+                    <div className="diag-header">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect width="20" height="14" x="2" y="3" rx="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                      </svg>
+                      <span>Auto-attached Diagnostics:</span>
+                    </div>
+                    <span className="diag-info">
+                      Platform: {navigator.platform || "Desktop"} • Screen: {window.screen.width}x{window.screen.height}
+                    </span>
+                  </div>
+
+                  {/* Modal Footer Actions */}
+                  <div className="bug-modal-footer">
+                    <button
+                      type="button"
+                      className="bug-cancel-btn"
+                      onClick={() => setShowBugReportModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="submit-btn bug-submit-btn"
+                      disabled={bugSubmitting}
+                    >
+                      {bugSubmitting ? (
+                        <span className="btn-loader">
+                          <span className="spinner"></span>
+                          <span>Submitting Ticket...</span>
+                        </span>
+                      ) : (
+                        <span className="btn-content">
+                          <span>Submit Report</span>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

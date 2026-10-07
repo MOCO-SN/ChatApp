@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import "./RightSidebar.css";
-import assets from "../../assets/assets";
 import { logout } from "../../config/Firebase-temp";
 import { AppContext } from "../../context/AppContext";
 

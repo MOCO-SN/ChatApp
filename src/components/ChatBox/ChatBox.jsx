@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./ChatBox.css";
 import assets from "../../assets/assets";
@@ -477,14 +477,7 @@ const VoiceMessagePlayer = ({
   const trackRef = useRef(null);
   const playerIdRef = useRef(Math.random().toString(36).substring(2, 9));
 
-  const cleanSrc = useMemo(() => {
-    if (!src || typeof src !== "string") return "";
-    if (src.startsWith("data:audio/")) {
-      return src.replace(/^data:(audio\/[a-zA-Z0-9_-]+)(;codecs=[^;]+)?(;base64,)/, "data:$1$3");
-    }
-    return src;
-  }, [src]);
-
+  const [playableSrc, setPlayableSrc] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(() => {
@@ -492,46 +485,122 @@ const VoiceMessagePlayer = ({
     return isFinite(rawDur) && rawDur > 0 ? rawDur : 0;
   });
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Sync duration if passed in msg or resolve via AudioContext
+  // Convert Base64 / Data URLs to Blob URLs for optimal browser streaming & seeking
   useEffect(() => {
-    let isMounted = true;
-    const msgDur = Number(msg?.audioDuration || msg?.duration);
-    if (isFinite(msgDur) && msgDur > 0) {
-      setDuration(msgDur);
+    let active = true;
+    let createdObjectUrl = null;
+
+    if (!src || typeof src !== "string") {
+      setPlayableSrc("");
       return;
     }
 
-    if (cleanSrc) {
+    if (src.startsWith("data:")) {
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          const audioCtx = new AudioCtx();
-          fetch(cleanSrc)
-            .then((res) => res.arrayBuffer())
-            .then((buf) => audioCtx.decodeAudioData(buf))
-            .then((decoded) => {
-              if (isMounted && decoded && isFinite(decoded.duration) && decoded.duration > 0) {
-                setDuration(decoded.duration);
-              }
-              audioCtx.close().catch((closeErr) => console.warn(closeErr));
-            })
-            .catch((decodeErr) => {
-              console.warn("Audio duration fetch failed:", decodeErr);
-              audioCtx.close().catch((closeErr) => console.warn(closeErr));
-            });
+        const parts = src.split(",");
+        const header = parts[0] || "";
+        const mimeMatch = header.match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "audio/webm";
+        const b64Data = parts[1];
+
+        if (b64Data) {
+          const byteCharacters = atob(b64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: mime });
+          createdObjectUrl = URL.createObjectURL(blob);
+          if (active) {
+            setPlayableSrc(createdObjectUrl);
+          }
+        } else {
+          if (active) setPlayableSrc(src);
         }
       } catch (err) {
-        console.warn("AudioContext decode error:", err);
+        console.warn("Error creating Blob URL from Data URL:", err);
+        if (active) setPlayableSrc(src);
+      }
+    } else if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("blob:")) {
+      if (active) setPlayableSrc(src);
+    } else {
+      // Raw base64 string fallback
+      try {
+        const byteCharacters = atob(src);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "audio/webm" });
+        createdObjectUrl = URL.createObjectURL(blob);
+        if (active) {
+          setPlayableSrc(createdObjectUrl);
+        }
+      } catch (rawErr) {
+        console.warn("Raw base64 conversion failed:", rawErr);
+        if (active) setPlayableSrc(src);
       }
     }
 
     return () => {
-      isMounted = false;
+      active = false;
+      if (createdObjectUrl) {
+        URL.revokeObjectURL(createdObjectUrl);
+      }
     };
-  }, [cleanSrc, msg?.audioDuration, msg?.duration]);
+  }, [src]);
+
+  // Sync duration if passed in msg or resolve via AudioContext
+  useEffect(() => {
+    const rawDur = Number(msg?.audioDuration || msg?.duration);
+    if (isFinite(rawDur) && rawDur > 0) {
+      setDuration(rawDur);
+      return;
+    }
+
+    if (!playableSrc) return;
+
+    let isMounted = true;
+    let audioCtx = null;
+
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        audioCtx = new AudioCtx();
+        fetch(playableSrc)
+          .then((res) => res.arrayBuffer())
+          .then((buf) => audioCtx.decodeAudioData(buf))
+          .then((decoded) => {
+            if (isMounted && decoded && isFinite(decoded.duration) && decoded.duration > 0) {
+              setDuration(decoded.duration);
+            }
+          })
+          .catch((decodeErr) => {
+            console.warn("Audio duration fetch info:", decodeErr);
+          })
+          .finally(() => {
+            if (audioCtx && audioCtx.state !== "closed") {
+              audioCtx.close().catch(() => {});
+            }
+          });
+      }
+    } catch (err) {
+      console.warn("AudioContext decode error:", err);
+    }
+
+    return () => {
+      isMounted = false;
+      if (audioCtx && audioCtx.state !== "closed") {
+        audioCtx.close().catch(() => {});
+      }
+    };
+  }, [playableSrc, msg?.audioDuration, msg?.duration]);
 
   // Pause when other audio in chat plays
   useEffect(() => {
@@ -563,53 +632,61 @@ const VoiceMessagePlayer = ({
     }
   };
 
-  const togglePlay = (e) => {
-    if (e) e.stopPropagation();
+  const togglePlay = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const audio = audioRef.current;
     if (!audio) return;
 
     if (isPlaying) {
       audio.pause();
       setIsPlaying(false);
-    } else {
-      window.dispatchEvent(
-        new CustomEvent("chatapp-audio-play", { detail: { id: playerIdRef.current } })
-      );
+      return;
+    }
 
-      // Reset to beginning if track ended
-      if (audio.ended || (duration > 0 && audio.currentTime >= duration - 0.2)) {
-        audio.currentTime = 0;
-        setCurrentTime(0);
+    window.dispatchEvent(
+      new CustomEvent("chatapp-audio-play", { detail: { id: playerIdRef.current } })
+    );
+
+    // Reset to beginning if track ended
+    if (audio.ended || (duration > 0 && audio.currentTime >= duration - 0.2)) {
+      audio.currentTime = 0;
+      setCurrentTime(0);
+    }
+
+    setIsLoading(true);
+    setHasError(false);
+
+    try {
+      if (audio.readyState === 0) {
+        audio.load();
       }
-
-      setIsLoading(true);
-      setHasError(false);
-
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            setIsLoading(false);
-          })
-          .catch((err) => {
-            console.warn("Audio play promise rejected, reloading to retry:", err);
-            audio.currentTime = 0;
-            audio.load();
-            audio
-              .play()
-              .then(() => {
-                setIsPlaying(true);
-                setIsLoading(false);
-              })
-              .catch((playErr) => {
-                console.error("Audio playback error:", playErr);
-                setIsPlaying(false);
-                setIsLoading(false);
-                setHasError(true);
-                toast.error("Audio playback failed");
-              });
-          });
+      await audio.play();
+      setIsPlaying(true);
+      setIsLoading(false);
+    } catch (err) {
+      console.warn("Audio play promise failed, attempting safe load and retry:", err);
+      try {
+        audio.load();
+        await new Promise((resolve) => {
+          const onCanPlay = () => {
+            audio.removeEventListener("canplay", onCanPlay);
+            resolve();
+          };
+          audio.addEventListener("canplay", onCanPlay);
+          setTimeout(resolve, 800);
+        });
+        await audio.play();
+        setIsPlaying(true);
+        setIsLoading(false);
+      } catch (playErr) {
+        console.error("Audio playback error:", playErr);
+        setIsPlaying(false);
+        setIsLoading(false);
+        setHasError(true);
+        toast.error("Audio playback failed");
       }
     }
   };
@@ -645,6 +722,14 @@ const VoiceMessagePlayer = ({
     }
   };
 
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    if (!audioRef.current) return;
+    const nextMuted = !isMuted;
+    audioRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
   const formatTime = (timeInSec) => {
     if (!timeInSec || isNaN(timeInSec) || !isFinite(timeInSec) || timeInSec < 0) return "0:00";
     const mins = Math.floor(timeInSec / 60);
@@ -662,8 +747,9 @@ const VoiceMessagePlayer = ({
     <div className={`voice-msg-player ${isOwn ? "own-voice" : "other-voice"} ${isPlaying ? "playing" : ""}`}>
       <audio
         ref={audioRef}
-        src={cleanSrc}
+        src={playableSrc}
         preload="auto"
+        playsInline
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onDurationChange={handleLoadedMetadata}
@@ -740,6 +826,28 @@ const VoiceMessagePlayer = ({
                 ? formatTime(duration)
                 : formatTime(currentTime)}
             </span>
+
+            <button
+              type="button"
+              className={`voice-mute-btn ${isMuted ? "muted" : ""}`}
+              onClick={toggleMute}
+              title={isMuted ? "Unmute audio" : "Mute audio"}
+              aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+            >
+              {isMuted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                  <path d="m9 9 3-3v12l-5-4H3V10h4l2-2Z" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              )}
+            </button>
+
             {isPlaying && (
               <button
                 type="button"
@@ -1708,22 +1816,22 @@ const ChatBox = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      let mimeType = "audio/webm;codecs=opus";
+      
+      let mimeType = "";
       if (typeof MediaRecorder !== "undefined") {
-        if (!MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          mimeType = "audio/webm;codecs=opus";
+        } else if (MediaRecorder.isTypeSupported("audio/webm")) {
           mimeType = "audio/webm";
-          if (!MediaRecorder.isTypeSupported("audio/webm")) {
-            mimeType = "audio/mp4";
-            if (!MediaRecorder.isTypeSupported("audio/mp4")) {
-              mimeType = "";
-            }
-          }
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
+          mimeType = "audio/ogg";
         }
       }
 
-      const options = mimeType ? { mimeType } : {};
-      const mediaRecorder = new MediaRecorder(stream, options);
+      const recorderOptions = mimeType ? { mimeType } : {};
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       shouldSendAudioRef.current = true;
@@ -1744,15 +1852,17 @@ const ChatBox = () => {
         stream.getTracks().forEach((track) => track.stop());
 
         if (shouldSendAudioRef.current && audioChunksRef.current.length > 0) {
-          const recordedMime = mediaRecorder.mimeType || "audio/webm";
+          const recordedMime = mediaRecorder.mimeType || mimeType || "audio/webm";
           const audioBlob = new Blob(audioChunksRef.current, { type: recordedMime });
-          const extension = recordedMime.includes("mp4") ? "mp4" : "webm";
-          const audioFile = new File([audioBlob], `voice_note_${Date.now()}.${extension}`, { type: recordedMime });
-          await sendAudio(audioFile, recordedSecs);
+          if (audioBlob.size > 0) {
+            const extension = recordedMime.includes("mp4") ? "mp4" : recordedMime.includes("ogg") ? "ogg" : "webm";
+            const audioFile = new File([audioBlob], `voice_note_${Date.now()}.${extension}`, { type: recordedMime });
+            await sendAudio(audioFile, recordedSecs);
+          }
         }
       };
 
-      mediaRecorder.start(200); // 200ms timeslices ensure audio is captured reliably
+      mediaRecorder.start(200); // 200ms timeslices ensure audio chunks are captured reliably
       setIsRecording(true);
       setRecordingDuration(0);
       recordingDurationRef.current = 0;
@@ -1771,6 +1881,13 @@ const ChatBox = () => {
   const stopAndSendRecording = () => {
     shouldSendAudioRef.current = true;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try {
+        if (mediaRecorderRef.current.state === "recording") {
+          mediaRecorderRef.current.requestData();
+        }
+      } catch (err) {
+        console.warn("requestData error before stop:", err);
+      }
       mediaRecorderRef.current.stop();
     }
   };

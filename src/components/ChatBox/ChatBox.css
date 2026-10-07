@@ -575,6 +575,53 @@
   transform: scale(1.05);
 }
 
+.voice-mute-btn {
+  background: rgba(0, 0, 0, 0.06);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.voice-mute-btn:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+  transform: scale(1.1);
+}
+
+.voice-mute-btn.muted {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.voice-mute-btn.muted:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #dc2626;
+}
+
+.s-msg .voice-mute-btn {
+  background: rgba(0, 0, 0, 0.08);
+  color: #0f3823;
+}
+
+.s-msg .voice-mute-btn:hover {
+  background: rgba(0, 0, 0, 0.14);
+  color: #042f1a;
+}
+
+.s-msg .voice-mute-btn.muted {
+  background: rgba(220, 38, 38, 0.18);
+  color: #991b1b;
+}
+
 .voice-meta-row .msg-bottom.inline {
   display: inline-flex;
   align-items: center;
