@@ -1,4 +1,5 @@
 import { uploadDocument } from "../api/service";
+import { uploadVideoWithProgress, isVideoFile, saveVideoToVault } from "./mediaVault";
 
 /**
  * Compresses an image file before upload or fallback using HTML5 Canvas.
@@ -54,7 +55,7 @@ const compressImage = (file, maxDimension = 1280, quality = 0.82) => {
  * If Cloudinary permissions (actions=["create"]) or quota limits trigger an error,
  * it seamlessly falls back to optimized Data URLs so media never fails to send.
  */
-export const uploadToCloudinary = async (file) => {
+export const uploadToCloudinary = async (file, onProgress, abortSignal) => {
   if (!file) throw new Error("No file provided");
 
   // 1. For Images (photos, attachments, avatars)
@@ -126,7 +127,12 @@ export const uploadToCloudinary = async (file) => {
     });
   }
 
-  // 3. For Videos & Other Documents / Attachments
+  // 3. For Videos (resilient chunked upload with real-time progress)
+  if (isVideoFile(file)) {
+    return uploadVideoWithProgress(file, onProgress, abortSignal);
+  }
+
+  // 4. For Other Documents / Attachments
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
@@ -149,22 +155,17 @@ export const uploadToCloudinary = async (file) => {
           return;
         }
 
-        if (file.size <= 8 * 1024 * 1024) {
-          console.warn(
-            "Cloudinary upload forbidden/error, using Data URL fallback for media:",
-            result?.error || result
-          );
-          resolve(base64File);
-          return;
-        }
-
-        throw new Error(result?.error?.message || result?.error || "Cloudinary upload service unavailable");
+        // Seamless fallback to Firestore media vault so upload never errors
+        console.warn("Cloudinary upload rejected/forbidden, falling back to Firestore Media Vault:", result?.error || result);
+        const vaultUri = await saveVideoToVault(file, onProgress, abortSignal);
+        resolve(vaultUri);
       } catch (err) {
-        if (file.size <= 8 * 1024 * 1024) {
-          console.warn("Cloudinary upload failed, using Data URL fallback for media:", err);
-          resolve(base64File);
-        } else {
-          reject(err);
+        console.warn("Cloudinary upload failed, falling back to Firestore Media Vault:", err);
+        try {
+          const vaultUri = await saveVideoToVault(file, onProgress, abortSignal);
+          resolve(vaultUri);
+        } catch (vaultErr) {
+          reject(vaultErr);
         }
       }
     };

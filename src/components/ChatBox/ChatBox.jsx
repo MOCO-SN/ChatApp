@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 
 import E2EE from "../../lib/e2ee";
 import { uploadToCloudinary } from "../../lib/cloudinary";
+import { resolveMediaUrl, uploadVideoWithProgress, formatFileSize, isVideoFile } from "../../lib/mediaVault";
 
 const EMOJI_CATEGORIES = [
   {
@@ -888,6 +889,45 @@ const VideoMessagePlayer = ({
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(false);
+  const [playableSrc, setPlayableSrc] = useState(src || "");
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!src) {
+      setPlayableSrc("");
+      return;
+    }
+    if (
+      src.startsWith("http://") ||
+      src.startsWith("https://") ||
+      src.startsWith("blob:") ||
+      src.startsWith("data:")
+    ) {
+      setPlayableSrc(src);
+      return;
+    }
+
+    setIsLoadingMedia(true);
+    resolveMediaUrl(src)
+      .then((resolved) => {
+        if (active) {
+          setPlayableSrc(resolved || src);
+          setIsLoadingMedia(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to resolve video src:", err);
+        if (active) {
+          setPlayableSrc(src);
+          setIsLoadingMedia(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [src]);
 
   const togglePlay = (e) => {
     if (e) e.stopPropagation();
@@ -953,7 +993,7 @@ const VideoMessagePlayer = ({
     >
       <video
         ref={videoRef}
-        src={src}
+        src={playableSrc}
         preload="metadata"
         playsInline
         onTimeUpdate={handleTimeUpdate}
@@ -968,8 +1008,16 @@ const VideoMessagePlayer = ({
         className="video-player-element"
       />
 
+      {/* Buffering/Loading Overlay */}
+      {isLoadingMedia && (
+        <div className="video-buffering-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="video-buffer-spinner" />
+          <span>Loading video...</span>
+        </div>
+      )}
+
       {/* Center Play Button Overlay */}
-      {!isPlaying && (
+      {!isPlaying && !isLoadingMedia && (
         <div className="video-center-overlay" onClick={togglePlay}>
           <button
             type="button"
@@ -998,7 +1046,7 @@ const VideoMessagePlayer = ({
             className="video-expand-btn"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenLightbox({ type: "video", url: src });
+              onOpenLightbox({ type: "video", url: playableSrc || src });
             }}
             title="Expand Fullscreen"
           >
@@ -1366,7 +1414,7 @@ const BusinessMessageCard = ({
               <span style="color: #6366f1;">${business.amount}</span>
             </div>
           ` : ""}
-          <div class="footer">Thank you for your business! • Generated from ChatNova</div>
+          <div class="footer">Thank you for your business! • Generated from MOCOSN CHAT</div>
           <script>window.print();</script>
         </body>
       </html>
@@ -1602,10 +1650,19 @@ const ChatBox = () => {
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const [lightboxRotation, setLightboxRotation] = useState(0);
 
-  const handleOpenLightbox = (media) => {
+  const handleOpenLightbox = async (media) => {
     setLightboxZoom(1);
     setLightboxRotation(0);
-    setLightboxMedia(media);
+    if (media?.type === "video" && media.url) {
+      try {
+        const resolved = await resolveMediaUrl(media.url);
+        setLightboxMedia({ ...media, url: resolved || media.url });
+      } catch (e) {
+        setLightboxMedia(media);
+      }
+    } else {
+      setLightboxMedia(media);
+    }
   };
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -1613,7 +1670,7 @@ const ChatBox = () => {
   const [emojiSearchQuery, setEmojiSearchQuery] = useState("");
   const [recentEmojis, setRecentEmojis] = useState(() => {
     try {
-      const saved = localStorage.getItem("chatnova_recent_emojis");
+      const saved = localStorage.getItem("MOCOSN_CHAT_recent_emojis");
       return saved ? JSON.parse(saved) : ["❤️", "👍", "😂", "😍", "🔥", "🙏", "🎉", "✨", "🙌", "😊"];
     } catch (err) {
       console.warn("Failed to load recent emojis from storage:", err);
@@ -1645,7 +1702,7 @@ const ChatBox = () => {
       const filtered = prev.filter((e) => e !== emoji);
       const next = [emoji, ...filtered].slice(0, 28);
       try {
-        localStorage.setItem("chatnova_recent_emojis", JSON.stringify(next));
+        localStorage.setItem("MOCOSN_CHAT_recent_emojis", JSON.stringify(next));
       } catch (err) {
         console.error(err);
       }
@@ -1656,6 +1713,7 @@ const ChatBox = () => {
   const [showBusinessPanel, setShowBusinessPanel] = useState(false);
   const [businessTemplate, setBusinessTemplate] = useState("invoice");
   const [invoiceAttachments, setInvoiceAttachments] = useState([]);
+  const [videoUpload, setVideoUpload] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingDurationRef = useRef(0);
@@ -1783,17 +1841,68 @@ const ChatBox = () => {
     }
   };
 
-  const sendImage = async (e) => {
+  const handleSendVideo = async (file) => {
+    if (!file || !messagesId || !chatUser) return;
+
+    const MAX_SIZE = 50 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error(`Video exceeds 50MB limit (${formatFileSize(file.size)})`);
+      return;
+    }
+
+    if (videoUpload) {
+      toast.warning("Another video is currently uploading. Please wait.");
+      return;
+    }
+
+    const abortController = new AbortController();
+    let localPreviewUrl = "";
     try {
-      const file = e.target.files[0];
-      if (!file || !messagesId || !chatUser) return;
+      localPreviewUrl = URL.createObjectURL(file);
+    } catch (e) {
+      console.warn("Could not create object url for preview:", e);
+    }
 
-      const fileUrl = await uploadToCloudinary(file);
+    const uploadState = {
+      id: `vid_up_${Date.now()}`,
+      name: file.name || "video.mp4",
+      size: file.size,
+      formattedSize: formatFileSize(file.size),
+      previewUrl: localPreviewUrl,
+      progress: 5,
+      stage: "uploading",
+      statusText: "Uploading video... 5%",
+      abortController,
+    };
 
-      if (fileUrl && messagesId) {
+    setVideoUpload(uploadState);
+    scrollToBottom("smooth");
+
+    try {
+      const videoUrl = await uploadVideoWithProgress(
+        file,
+        ({ percent, loaded, total, stage }) => {
+          setVideoUpload((prev) => {
+            if (!prev) return null;
+            let statusText = `Uploading ${percent}%...`;
+            if (stage === "saving") statusText = `Saving video ${percent}%...`;
+            if (percent >= 100) statusText = "Finalizing video...";
+            return {
+              ...prev,
+              progress: percent,
+              stage,
+              statusText,
+              loadedFormatted: formatFileSize(loaded),
+            };
+          });
+        },
+        abortController.signal
+      );
+
+      if (videoUrl && messagesId) {
         const messageData = {
           sId: userData.id,
-          ...(file.type.startsWith("video") ? { video: fileUrl } : { image: fileUrl }),
+          video: videoUrl,
           createdAt: new Date(),
           status: "sent",
           ...(userData.accountType === "business" ? { messageType: "media" } : {}),
@@ -1803,8 +1912,64 @@ const ChatBox = () => {
           messages: arrayUnion(messageData),
         });
 
-        const lastMessageText = file.type.startsWith("video") ? "Video" : "Image";
-        updateChatLastMessage(lastMessageText).catch((err) => {
+        updateChatLastMessage("Video").catch((err) => {
+          console.error("Failed to update chat last message:", err);
+        });
+
+        toast.success("Video sent successfully!");
+      }
+    } catch (error) {
+      if (error.message?.includes("aborted") || error.message?.includes("cancelled")) {
+        toast.info("Video upload cancelled");
+      } else {
+        console.error("Video send error:", error);
+        toast.error("Failed to send video: " + error.message);
+      }
+    } finally {
+      setVideoUpload(null);
+      scrollToBottom("smooth");
+    }
+  };
+
+  const cancelVideoUpload = () => {
+    if (videoUpload?.abortController) {
+      videoUpload.abortController.abort();
+    }
+    setVideoUpload(null);
+  };
+
+  const sendImage = async (e) => {
+    try {
+      const file = e.target.files?.[0];
+      if (e.target) e.target.value = "";
+      if (!file) return;
+
+      if (!messagesId || !chatUser) {
+        toast.error("Please select a conversation to send media");
+        return;
+      }
+
+      if (isVideoFile(file)) {
+        await handleSendVideo(file);
+        return;
+      }
+
+      const fileUrl = await uploadToCloudinary(file);
+
+      if (fileUrl && messagesId) {
+        const messageData = {
+          sId: userData.id,
+          image: fileUrl,
+          createdAt: new Date(),
+          status: "sent",
+          ...(userData.accountType === "business" ? { messageType: "media" } : {}),
+        };
+
+        await updateDoc(doc(db, "messages", messagesId), {
+          messages: arrayUnion(messageData),
+        });
+
+        updateChatLastMessage("Image").catch((err) => {
           console.error("Failed to update chat last message:", err);
         });
       }
@@ -2497,8 +2662,143 @@ const ChatBox = () => {
             );
           })
         )}
+        {videoUpload && (
+          <div className="s-msg video-upload-pending-msg">
+            <div className="video-upload-card">
+              <div className="video-upload-preview-wrap">
+                {videoUpload.previewUrl ? (
+                  <video
+                    src={videoUpload.previewUrl}
+                    className="video-upload-thumb"
+                    muted
+                    playsInline
+                    preload="metadata"
+                  />
+                ) : (
+                  <div className="video-upload-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="23 7 16 12 23 17 23 7" />
+                      <rect width="14" height="14" x="1" y="5" rx="2" ry="2" />
+                    </svg>
+                  </div>
+                )}
+
+                {/* Top Live Badge */}
+                <div className="video-upload-top-badge">
+                  <span className="upload-live-dot" />
+                  <span>UPLOADING VIDEO</span>
+                </div>
+
+                {/* Circular Progress Overlay */}
+                <div className="video-upload-circular-overlay">
+                  <div className="video-progress-ring-wrap">
+                    <svg className="video-progress-ring" width="56" height="56" viewBox="0 0 56 56">
+                      <circle
+                        className="progress-ring-bg"
+                        cx="28"
+                        cy="28"
+                        r="23"
+                        strokeWidth="4"
+                      />
+                      <circle
+                        className="progress-ring-bar"
+                        cx="28"
+                        cy="28"
+                        r="23"
+                        strokeWidth="4"
+                        style={{
+                          strokeDasharray: `${2 * Math.PI * 23}`,
+                          strokeDashoffset: `${2 * Math.PI * 23 * (1 - (videoUpload.progress || 0) / 100)}`,
+                        }}
+                      />
+                    </svg>
+                    <div className="video-progress-ring-text">
+                      <span className="ring-percent">{videoUpload.progress}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="video-upload-meta-wrap">
+                <div className="video-upload-file-info">
+                  <div className="video-upload-filename" title={videoUpload.name}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polygon points="23 7 16 12 23 17 23 7" />
+                      <rect width="14" height="14" x="1" y="5" rx="2" ry="2" />
+                    </svg>
+                    <span>{videoUpload.name}</span>
+                  </div>
+                  <span className="video-upload-filesize">{videoUpload.formattedSize}</span>
+                </div>
+
+                <div className="video-upload-linear-bar">
+                  <div
+                    className="video-upload-linear-fill"
+                    style={{ width: `${Math.max(4, videoUpload.progress)}%` }}
+                  />
+                </div>
+
+                <div className="video-upload-footer">
+                  <span className="video-upload-status-text">
+                    <span className="status-pulse-dot" />
+                    {videoUpload.statusText}
+                  </span>
+                  <button
+                    type="button"
+                    className="video-upload-abort-btn"
+                    onClick={cancelVideoUpload}
+                    title="Cancel upload"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="msg-meta">
+              <div className="img-overlay-wrapper" style={{ width: "22px", aspectRatio: "1/1" }}>
+                <img src={userData.avatar} alt="" />
+              </div>
+              <p>Sending...</p>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
+
+      {videoUpload && (
+        <div className="chat-upload-floating-banner">
+          <div className="upload-banner-left">
+            <div className="upload-banner-icon-box">
+              <div className="upload-banner-spinner" />
+            </div>
+            <div className="upload-banner-text">
+              <span className="upload-banner-title">
+                Sending video: <strong>{videoUpload.name}</strong>
+              </span>
+              <span className="upload-banner-sub">
+                {videoUpload.progress}% • {videoUpload.formattedSize}
+              </span>
+            </div>
+          </div>
+          <div className="upload-banner-right">
+            <div className="upload-banner-mini-bar">
+              <div
+                className="upload-banner-mini-fill"
+                style={{ width: `${videoUpload.progress}%` }}
+              />
+            </div>
+            <button
+              type="button"
+              className="upload-banner-cancel-btn"
+              onClick={cancelVideoUpload}
+              title="Cancel video upload"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={`chat-input ${isRecording ? "recording-active" : ""}`}>
         {isRecording ? (
@@ -2559,12 +2859,17 @@ const ChatBox = () => {
               onChange={sendImage}
               type="file"
               id="image"
-              accept="image/png, image/jpeg, video/mp4, video/webm"
+              accept="image/png, image/jpeg, image/webp, video/mp4, video/webm, video/quicktime, video/*"
               hidden
+              disabled={!!videoUpload}
             />
 
-            <label htmlFor="image">
-              <img src={assets.gallery_icon} alt="" />
+            <label
+              htmlFor="image"
+              title={videoUpload ? "Upload in progress..." : "Send photo or video"}
+              style={videoUpload ? { opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" } : {}}
+            >
+              <img src={assets.gallery_icon} alt="Send photo or video" />
             </label>
           </>
         )}
@@ -2740,7 +3045,7 @@ const ChatBox = () => {
                           onClick={() => {
                             setRecentEmojis([]);
                             try {
-                              localStorage.removeItem("chatnova_recent_emojis");
+                              localStorage.removeItem("MOCOSN_CHAT_recent_emojis");
                             } catch (err) {
                               console.warn(err);
                             }
